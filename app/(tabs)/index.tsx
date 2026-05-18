@@ -31,6 +31,15 @@ type Item = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
+type BorrowRequest = {
+  id: number;
+  itemTitle: string;
+  owner: string;
+  tokens: number;
+  status: "Pending" | "Accepted" | "Returned";
+  date: string;
+};
+
 type NewItemInput = {
   title: string;
   category: string;
@@ -134,6 +143,9 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [query, setQuery] = useState("");
   const [itemList, setItemList] = useState<Item[]>(initialItems);
+  const [tokenBalance, setTokenBalance] = useState(42);
+  const [borrowRequests, setBorrowRequests] = useState<BorrowRequest[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
 
   const filteredItems = useMemo(() => {
     let result = itemList;
@@ -186,6 +198,56 @@ export default function App() {
     );
   };
 
+  const handleBorrow = (item: Item) => {
+    const alreadyRequested = borrowRequests.some(
+      (request) =>
+        request.itemTitle === item.title && request.status === "Pending"
+    );
+
+    if (alreadyRequested) {
+      Alert.alert(
+        "Request already sent",
+        `You already have a pending request for ${item.title}.`
+      );
+      return;
+    }
+
+    if (tokenBalance < item.tokens) {
+      Alert.alert(
+        "Not enough tokens",
+        `You need ${item.tokens} tokens, but you only have ${tokenBalance}.`
+      );
+      return;
+    }
+
+    const newRequest: BorrowRequest = {
+      id: Date.now(),
+      itemTitle: item.title,
+      owner: item.owner,
+      tokens: item.tokens,
+      status: "Pending",
+      date: "Today",
+    };
+
+    setBorrowRequests((currentRequests) => [newRequest, ...currentRequests]);
+    setTokenBalance((currentBalance) => currentBalance - item.tokens);
+
+    Alert.alert(
+      "Borrow request sent",
+      `Your request for ${item.title} was sent to ${item.owner}. ${item.tokens} tokens are now reserved.`
+    );
+  };
+
+  const toggleFavorite = (itemId: number) => {
+    setFavoriteIds((currentIds) => {
+      if (currentIds.includes(itemId)) {
+        return currentIds.filter((id) => id !== itemId);
+      }
+
+      return [...currentIds, itemId];
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -194,7 +256,13 @@ export default function App() {
 
       <View style={styles.contentShell}>
         {selectedItem ? (
-          <ItemDetails item={selectedItem} onBack={() => setSelectedItem(null)} />
+          <ItemDetails
+            item={selectedItem}
+            onBack={() => setSelectedItem(null)}
+            onBorrow={handleBorrow}
+            isFavorite={favoriteIds.includes(selectedItem.id)}
+            onToggleFavorite={() => toggleFavorite(selectedItem.id)}
+          />
         ) : (
           <>
             {screen === "home" && (
@@ -210,7 +278,16 @@ export default function App() {
 
             {screen === "add" && <AddItemScreen onPublish={addNewItem} />}
 
-            {screen === "profile" && <ProfileScreen />}
+            {screen === "profile" && (
+              <ProfileScreen
+                tokenBalance={tokenBalance}
+                borrowRequests={borrowRequests}
+                myListingsCount={
+                  itemList.filter((item) => item.owner === "Mock Student")
+                    .length
+                }
+              />
+            )}
           </>
         )}
       </View>
@@ -325,6 +402,7 @@ function HomeScreen({
 
       <View style={styles.searchBox}>
         <Ionicons name="search" size={20} color={colors.muted} />
+
         <TextInput
           value={query}
           onChangeText={onChangeQuery}
@@ -442,7 +520,19 @@ function ItemCard({ item, onPress }: { item: Item; onPress: () => void }) {
   );
 }
 
-function ItemDetails({ item, onBack }: { item: Item; onBack: () => void }) {
+function ItemDetails({
+  item,
+  onBack,
+  onBorrow,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  item: Item;
+  onBack: () => void;
+  onBorrow: (item: Item) => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+}) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.detailsTop}>
@@ -451,6 +541,16 @@ function ItemDetails({ item, onBack }: { item: Item; onBack: () => void }) {
         </Pressable>
 
         <Text style={styles.detailsTopText}>Item details</Text>
+
+        <View style={{ flex: 1 }} />
+
+        <Pressable onPress={onToggleFavorite} style={styles.favoriteTopButton}>
+          <Ionicons
+            name={isFavorite ? "heart" : "heart-outline"}
+            size={22}
+            color={isFavorite ? colors.orange : colors.text}
+          />
+        </Pressable>
       </View>
 
       <LinearGradient
@@ -500,15 +600,7 @@ function ItemDetails({ item, onBack }: { item: Item; onBack: () => void }) {
           />
         </View>
 
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() =>
-            Alert.alert(
-              "Borrow request sent",
-              `Your request for ${item.title} was sent to ${item.owner}.`
-            )
-          }
-        >
+        <Pressable style={styles.primaryButton} onPress={() => onBorrow(item)}>
           <Text style={styles.primaryButtonText}>Request to borrow</Text>
           <Ionicons name="arrow-forward" size={18} color={colors.white} />
         </Pressable>
@@ -525,6 +617,8 @@ function ItemDetails({ item, onBack }: { item: Item; onBack: () => void }) {
           <Text style={styles.secondaryButtonText}>Message owner</Text>
         </Pressable>
       </View>
+
+      <View style={styles.spacer} />
     </ScrollView>
   );
 }
@@ -547,7 +641,11 @@ function TrustBadge({
   );
 }
 
-function AddItemScreen({ onPublish }: { onPublish: (item: NewItemInput) => void }) {
+function AddItemScreen({
+  onPublish,
+}: {
+  onPublish: (item: NewItemInput) => void;
+}) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Audiovisual");
   const [tokens, setTokens] = useState("");
@@ -657,7 +755,15 @@ function AddItemScreen({ onPublish }: { onPublish: (item: NewItemInput) => void 
   );
 }
 
-function ProfileScreen() {
+function ProfileScreen({
+  tokenBalance,
+  borrowRequests,
+  myListingsCount,
+}: {
+  tokenBalance: number;
+  borrowRequests: BorrowRequest[];
+  myListingsCount: number;
+}) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.profileCard}>
@@ -677,7 +783,7 @@ function ProfileScreen() {
       <View style={styles.walletCard}>
         <View>
           <Text style={styles.walletLabel}>Token balance</Text>
-          <Text style={styles.walletValue}>42</Text>
+          <Text style={styles.walletValue}>{tokenBalance}</Text>
         </View>
 
         <View style={styles.walletIcon}>
@@ -689,13 +795,70 @@ function ProfileScreen() {
 
       <View style={styles.profileList}>
         <ProfileRow icon="mail" title="University email" value="Verified" />
-        <ProfileRow icon="shield-checkmark" title="Deposit system" value="Active" />
+        <ProfileRow
+          icon="shield-checkmark"
+          title="Deposit system"
+          value="Active"
+        />
         <ProfileRow icon="star" title="Peer rating" value="4.9/5.0" />
-        <ProfileRow icon="leaf" title="Circular economy" value="6 items shared" />
+        <ProfileRow
+          icon="leaf"
+          title="Circular economy"
+          value={`${myListingsCount} items shared`}
+        />
       </View>
+
+      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+        Borrow requests
+      </Text>
+
+      {borrowRequests.length > 0 ? (
+        <View style={styles.requestsList}>
+          {borrowRequests.map((request) => (
+            <RequestCard key={request.id} request={request} />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <Ionicons name="document-text-outline" size={34} color={colors.muted} />
+          <Text style={styles.emptyTitle}>No requests yet</Text>
+          <Text style={styles.emptyText}>
+            Borrow an item from the marketplace to see your request here.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.spacer} />
     </ScrollView>
+  );
+}
+
+function RequestCard({ request }: { request: BorrowRequest }) {
+  return (
+    <View style={styles.requestCard}>
+      <View style={styles.requestHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.requestItemTitle}>{request.itemTitle}</Text>
+          <Text style={styles.requestOwner}>Owner: {request.owner}</Text>
+        </View>
+
+        <View style={styles.requestStatus}>
+          <Text style={styles.requestStatusText}>{request.status}</Text>
+        </View>
+      </View>
+
+      <View style={styles.requestMeta}>
+        <View style={styles.metaRow}>
+          <Ionicons name="diamond" size={14} color={colors.orange} />
+          <Text style={styles.metaText}>{request.tokens} tokens reserved</Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="time-outline" size={14} color={colors.muted} />
+          <Text style={styles.metaText}>{request.date}</Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -1053,6 +1216,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  favoriteTopButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   detailsTopText: {
     fontSize: 18,
     fontWeight: "900",
@@ -1332,6 +1503,52 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 2,
     fontWeight: "600",
+  },
+  requestsTitle: {
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  requestsList: {
+    gap: 10,
+  },
+  requestCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  requestHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  requestItemTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  requestOwner: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 3,
+  },
+  requestStatus: {
+    backgroundColor: colors.lightBlue,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  requestStatusText: {
+    color: colors.blue,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  requestMeta: {
+    flexDirection: "row",
+    gap: 14,
+    marginTop: 12,
+    flexWrap: "wrap",
   },
   bottomNav: {
     backgroundColor: colors.white,
