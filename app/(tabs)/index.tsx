@@ -6,6 +6,7 @@ import {
   Alert,
   Animated,
   Easing,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -46,6 +47,20 @@ type BorrowRequest = {
   tokens: number;
   status: RequestStatus;
   date: string;
+  duration: string;
+  pickupLocation: string;
+};
+
+type OwnerRental = {
+  id: number;
+  itemId: number;
+  itemTitle: string;
+  borrower: string;
+  borrowerEmail: string;
+  tokensEarned: number;
+  status: "Active" | "Returned";
+  borrowedAt: string;
+  dueDate: string;
   duration: string;
   pickupLocation: string;
 };
@@ -96,6 +111,13 @@ const pickupOptions = [
   "Engineering Building",
   "Student Dorm A",
   "Campus Café",
+];
+
+const mockBorrowers = [
+  { name: "Clara", email: "clara@university.pt" },
+  { name: "Miguel", email: "miguel@university.pt" },
+  { name: "Nina", email: "nina@university.pt" },
+  { name: "Tomas", email: "tomas@university.pt" },
 ];
 
 const initialItems: Item[] = [
@@ -229,6 +251,7 @@ export default function App() {
   const [itemList, setItemList] = useState<Item[]>(initialItems);
   const [tokenBalance, setTokenBalance] = useState(42);
   const [borrowRequests, setBorrowRequests] = useState<BorrowRequest[]>([]);
+  const [ownerRentals, setOwnerRentals] = useState<OwnerRental[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [tokenEvents, setTokenEvents] = useState<TokenEvent[]>([
@@ -314,11 +337,33 @@ export default function App() {
     );
 
     setTimeout(() => {
+      const borrower = getRandomItem(mockBorrowers);
+      const duration = getRandomItem(durationOptions);
+      const dueDate = getDueDateLabel(duration.label);
+      const rentalId = Date.now() + Math.random();
+
+      setOwnerRentals((currentRentals) => [
+        {
+          id: rentalId,
+          itemId: item.id,
+          itemTitle: item.title,
+          borrower: borrower.name,
+          borrowerEmail: borrower.email,
+          tokensEarned: item.tokens,
+          status: "Active",
+          borrowedAt: "Just now",
+          dueDate,
+          duration: duration.label,
+          pickupLocation: item.pickupLocation,
+        },
+        ...currentRentals,
+      ]);
+
       setTokenBalance((currentBalance) => currentBalance + item.tokens);
       setTokenEvents((currentEvents) => [
         {
           id: Date.now() + Math.random(),
-          title: `${item.title} borrowed by another student`,
+          title: `${item.title} borrowed by ${borrower.name}`,
           amount: item.tokens,
           type: "earned",
           date: "Just now",
@@ -328,7 +373,7 @@ export default function App() {
 
       Alert.alert(
         "Tokens earned",
-        `Another student borrowed ${item.title}. You earned ${item.tokens} tokens.`
+        `${borrower.name} borrowed ${item.title} until ${dueDate}. You earned ${item.tokens} tokens.`
       );
     }, 4500);
   };
@@ -474,6 +519,37 @@ export default function App() {
     Alert.alert(
       "Item returned",
       "Great! You earned 2 bonus tokens for returning the item on time."
+    );
+  };
+
+  const markOwnerRentalReturned = (rentalId: number) => {
+    const rental = ownerRentals.find((item) => item.id === rentalId);
+
+    if (!rental || rental.status === "Returned") {
+      return;
+    }
+
+    setOwnerRentals((currentRentals) =>
+      currentRentals.map((item) =>
+        item.id === rentalId ? { ...item, status: "Returned" } : item
+      )
+    );
+
+    setTokenBalance((currentBalance) => currentBalance + 1);
+    setTokenEvents((currentEvents) => [
+      {
+        id: Date.now() + Math.random(),
+        title: `${rental.borrower} returned ${rental.itemTitle}`,
+        amount: 1,
+        type: "bonus",
+        date: "Just now",
+      },
+      ...currentEvents,
+    ]);
+
+    Alert.alert(
+      "Listing returned",
+      `${rental.borrower} returned ${rental.itemTitle}. You received +1 reliability bonus token.`
     );
   };
 
@@ -657,6 +733,9 @@ export default function App() {
             onBack={() => setSelectedItem(null)}
             onStartBorrow={startBorrowSummary}
             onOpenConversation={openConversation}
+            ownerRentals={ownerRentals.filter(
+              (rental) => rental.itemId === selectedItem.id
+            )}
             isFavorite={favoriteIds.includes(selectedItem.id)}
             onToggleFavorite={() => toggleFavorite(selectedItem.id)}
           />
@@ -668,6 +747,7 @@ export default function App() {
                 onSelectCategory={setSelectedCategory}
                 ownerFilter={ownerFilter}
                 onChangeOwnerFilter={setOwnerFilter}
+                ownerRentals={ownerRentals}
                 items={filteredItems}
                 onOpenItem={setSelectedItem}
                 query={query}
@@ -689,6 +769,7 @@ export default function App() {
                   favoriteIds.includes(item.id)
                 )}
                 conversations={conversations}
+                ownerRentals={ownerRentals}
                 tokenEvents={tokenEvents}
                 dailyBonusClaimed={dailyBonusClaimed}
                 onOpenFavorite={setSelectedItem}
@@ -697,6 +778,7 @@ export default function App() {
                 }
                 onCancelRequest={cancelRequest}
                 onMarkReturned={markRequestReturned}
+                onMarkOwnerRentalReturned={markOwnerRentalReturned}
                 onClaimDailyBonus={claimDailyBonus}
               />
             )}
@@ -713,6 +795,19 @@ export default function App() {
 
 function getRandomItem<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
+}
+
+function getDueDateLabel(duration: string) {
+  switch (duration) {
+    case "1 day":
+      return "Tomorrow";
+    case "3 days":
+      return "In 3 days";
+    case "1 week":
+      return "Next week";
+    default:
+      return "Soon";
+  }
 }
 
 function getIconForCategory(category: string): keyof typeof Ionicons.glyphMap {
@@ -793,6 +888,7 @@ function HomeScreen({
   onSelectCategory,
   ownerFilter,
   onChangeOwnerFilter,
+  ownerRentals,
   items,
   onOpenItem,
   query,
@@ -802,6 +898,7 @@ function HomeScreen({
   onSelectCategory: (category: string) => void;
   ownerFilter: OwnerFilter;
   onChangeOwnerFilter: (filter: OwnerFilter) => void;
+  ownerRentals: OwnerRental[];
   items: Item[];
   onOpenItem: (item: Item) => void;
   query: string;
@@ -913,6 +1010,9 @@ function HomeScreen({
             <ItemCard
               key={item.id}
               item={item}
+              activeOwnerRental={ownerRentals.find(
+                (rental) => rental.itemId === item.id && rental.status === "Active"
+              )}
               onPress={() => onOpenItem(item)}
             />
           ))}
@@ -967,7 +1067,15 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function ItemCard({ item, onPress }: { item: Item; onPress: () => void }) {
+function ItemCard({
+  item,
+  activeOwnerRental,
+  onPress,
+}: {
+  item: Item;
+  activeOwnerRental?: OwnerRental;
+  onPress: () => void;
+}) {
   const isMine = item.owner === currentUserName;
 
   return (
@@ -1009,7 +1117,11 @@ function ItemCard({ item, onPress }: { item: Item; onPress: () => void }) {
           )}
         </View>
 
-        <Text style={styles.itemCategory}>{item.availability}</Text>
+        <Text style={styles.itemCategory}>
+          {activeOwnerRental
+            ? `Borrowed by ${activeOwnerRental.borrower} until ${activeOwnerRental.dueDate}`
+            : item.availability}
+        </Text>
 
         <View style={styles.itemMeta}>
           <View style={styles.metaRow}>
@@ -1037,6 +1149,7 @@ function ItemDetails({
   onBack,
   onStartBorrow,
   onOpenConversation,
+  ownerRentals,
   isFavorite,
   onToggleFavorite,
 }: {
@@ -1044,6 +1157,7 @@ function ItemDetails({
   onBack: () => void;
   onStartBorrow: (item: Item) => void;
   onOpenConversation: (item: Item) => void;
+  ownerRentals: OwnerRental[];
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
@@ -1138,15 +1252,37 @@ function ItemDetails({
         </View>
 
         {isMine ? (
-          <View style={styles.ownerInfoBox}>
-            <Ionicons name="sparkles" size={20} color={colors.orange} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.ownerInfoTitle}>This is your listing</Text>
-              <Text style={styles.ownerInfoText}>
-                In demo mode, tokens are earned automatically when another student borrows it.
-              </Text>
+          <>
+            <View style={styles.ownerInfoBox}>
+              <Ionicons name="sparkles" size={20} color={colors.orange} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ownerInfoTitle}>This is your listing</Text>
+                <Text style={styles.ownerInfoText}>
+                  In demo mode, you can see who borrowed your item and when it should be returned.
+                </Text>
+              </View>
             </View>
-          </View>
+
+            <Text style={[styles.sectionTitle, styles.listingActivityTitle]}>
+              Listing activity
+            </Text>
+
+            {ownerRentals.length > 0 ? (
+              <View style={styles.ownerRentalsList}>
+                {ownerRentals.map((rental) => (
+                  <OwnerRentalCard key={rental.id} rental={rental} compact />
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyStateSmall}>
+                <Ionicons name="people-outline" size={28} color={colors.muted} />
+                <Text style={styles.emptyTitle}>No borrowers yet</Text>
+                <Text style={styles.emptyText}>
+                  When somebody borrows this item, their name and due date will appear here.
+                </Text>
+              </View>
+            )}
+          </>
         ) : (
           <>
             <Pressable style={styles.primaryButton} onPress={() => onStartBorrow(item)}>
@@ -1327,6 +1463,21 @@ function ChatScreen({
   onSendMessage: (conversationId: number, message: string) => void;
 }) {
   const [message, setMessage] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const handleSend = () => {
     const cleanMessage = message.trim();
@@ -1342,8 +1493,8 @@ function ChatScreen({
   return (
     <KeyboardAvoidingView
       style={styles.chatKeyboardAvoiding}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 8}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
     >
       <View style={styles.chatScreen}>
         <View style={styles.chatTop}>
@@ -1397,7 +1548,14 @@ function ChatScreen({
           ))}
         </ScrollView>
 
-        <View style={styles.chatInputBar}>
+        <View
+          style={[
+            styles.chatInputBar,
+            Platform.OS === "android" && keyboardHeight > 0
+              ? { marginBottom: keyboardHeight + 10 }
+              : null,
+          ]}
+        >
           <TextInput
             value={message}
             onChangeText={setMessage}
@@ -1537,12 +1695,14 @@ function ProfileScreen({
   myListingsCount,
   favoriteItems,
   conversations,
+  ownerRentals,
   tokenEvents,
   dailyBonusClaimed,
   onOpenFavorite,
   onOpenConversation,
   onCancelRequest,
   onMarkReturned,
+  onMarkOwnerRentalReturned,
   onClaimDailyBonus,
 }: {
   tokenBalance: number;
@@ -1550,12 +1710,14 @@ function ProfileScreen({
   myListingsCount: number;
   favoriteItems: Item[];
   conversations: Conversation[];
+  ownerRentals: OwnerRental[];
   tokenEvents: TokenEvent[];
   dailyBonusClaimed: boolean;
   onOpenFavorite: (item: Item) => void;
   onOpenConversation: (conversationId: number) => void;
   onCancelRequest: (requestId: number) => void;
   onMarkReturned: (requestId: number) => void;
+  onMarkOwnerRentalReturned: (rentalId: number) => void;
   onClaimDailyBonus: () => void;
 }) {
   return (
@@ -1626,6 +1788,30 @@ function ProfileScreen({
           value={`${myListingsCount} items shared`}
         />
       </View>
+
+      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+        My listings activity
+      </Text>
+
+      {ownerRentals.length > 0 ? (
+        <View style={styles.ownerRentalsList}>
+          {ownerRentals.map((rental) => (
+            <OwnerRentalCard
+              key={rental.id}
+              rental={rental}
+              onMarkReturned={() => onMarkOwnerRentalReturned(rental.id)}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <Ionicons name="storefront-outline" size={34} color={colors.muted} />
+          <Text style={styles.emptyTitle}>No active borrowers yet</Text>
+          <Text style={styles.emptyText}>
+            Publish an item and demo mode will simulate a student borrowing it.
+          </Text>
+        </View>
+      )}
 
       <Text style={[styles.sectionTitle, styles.requestsTitle]}>
         Conversations
@@ -1712,6 +1898,81 @@ function ProfileScreen({
 
       <View style={styles.spacer} />
     </ScrollView>
+  );
+}
+
+function OwnerRentalCard({
+  rental,
+  compact = false,
+  onMarkReturned,
+}: {
+  rental: OwnerRental;
+  compact?: boolean;
+  onMarkReturned?: () => void;
+}) {
+  const isReturned = rental.status === "Returned";
+
+  return (
+    <View style={[styles.ownerRentalCard, compact && styles.ownerRentalCardCompact]}>
+      <View style={styles.ownerRentalHeader}>
+        <View style={styles.ownerRentalAvatar}>
+          <Text style={styles.ownerRentalAvatarText}>
+            {rental.borrower.slice(0, 1).toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ownerRentalTitle}>{rental.itemTitle}</Text>
+          <Text style={styles.ownerRentalBorrower}>
+            Borrowed by {rental.borrower} · {rental.borrowerEmail}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.requestStatus,
+            isReturned && styles.requestStatusReturned,
+          ]}
+        >
+          <Text
+            style={[
+              styles.requestStatusText,
+              isReturned && styles.requestStatusTextReturned,
+            ]}
+          >
+            {rental.status}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.requestMeta}>
+        <View style={styles.metaRow}>
+          <Ionicons name="calendar-outline" size={14} color={colors.muted} />
+          <Text style={styles.metaText}>Until: {rental.dueDate}</Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="time-outline" size={14} color={colors.muted} />
+          <Text style={styles.metaText}>{rental.duration}</Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="map-outline" size={14} color={colors.muted} />
+          <Text style={styles.metaText}>{rental.pickupLocation}</Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="diamond" size={14} color={colors.orange} />
+          <Text style={styles.metaText}>+{rental.tokensEarned} earned</Text>
+        </View>
+      </View>
+
+      {!compact && !isReturned && onMarkReturned && (
+        <Pressable style={styles.requestActionButton} onPress={onMarkReturned}>
+          <Text style={styles.requestActionText}>Mark borrower returned item</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -2882,6 +3143,61 @@ const styles = StyleSheet.create({
   requestsTitle: {
     marginTop: 24,
     marginBottom: 12,
+  },
+  listingActivityTitle: {
+    fontSize: 18,
+    marginTop: 22,
+    marginBottom: 12,
+  },
+  ownerRentalsList: {
+    gap: 10,
+  },
+  ownerRentalCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ownerRentalCardCompact: {
+    backgroundColor: colors.ivory,
+  },
+  ownerRentalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  ownerRentalAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 18,
+    backgroundColor: colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ownerRentalAvatarText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  ownerRentalTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 15,
+  },
+  ownerRentalBorrower: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 3,
+    fontSize: 12,
+  },
+  emptyStateSmall: {
+    backgroundColor: colors.ivory,
+    borderRadius: 20,
+    padding: 18,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   conversationList: {
     gap: 10,
