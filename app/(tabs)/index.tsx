@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
@@ -108,6 +109,19 @@ type NotificationItem = {
   date: string;
 };
 
+type PersistedAppState = {
+  itemList: Item[];
+  tokenBalance: number;
+  borrowRequests: BorrowRequest[];
+  ownerRentals: OwnerRental[];
+  favoriteIds: number[];
+  conversations: Conversation[];
+  tokenEvents: TokenEvent[];
+  dailyBonusClaimed: boolean;
+  notifications: NotificationItem[];
+};
+
+const STORAGE_KEY = "@studswap_demo_state_v1";
 const currentUserName = "Mock Student";
 
 const categories = ["All", "Audiovisual", "Prototyping", "Dress", "Study"];
@@ -245,6 +259,26 @@ const initialItems: Item[] = [
   },
 ];
 
+const initialTokenEvents: TokenEvent[] = [
+  {
+    id: 1001,
+    title: "Welcome bonus",
+    amount: 42,
+    type: "bonus",
+    date: "Today",
+  },
+];
+
+const initialNotifications: NotificationItem[] = [
+  {
+    id: 2001,
+    title: "Welcome to Stud&Swap",
+    text: "Your profile is verified and you received a starter token bonus.",
+    icon: "checkmark-circle",
+    date: "Today",
+  },
+];
+
 const sellerGreetings = [
   "Hi! Thanks for your interest. The item is still available.",
   "Hello! I can lend it this week if that works for you.",
@@ -276,25 +310,142 @@ export default function App() {
   const [ownerRentals, setOwnerRentals] = useState<OwnerRental[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [tokenEvents, setTokenEvents] = useState<TokenEvent[]>([
-    {
-      id: 1001,
-      title: "Welcome bonus",
-      amount: 42,
-      type: "bonus",
-      date: "Today",
-    },
-  ]);
+  const [tokenEvents, setTokenEvents] = useState<TokenEvent[]>(initialTokenEvents);
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 2001,
-      title: "Welcome to Stud&Swap",
-      text: "Your profile is verified and you received a starter token bonus.",
-      icon: "checkmark-circle",
-      date: "Today",
-    },
+  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [isStorageReady, setIsStorageReady] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPersistedState = async () => {
+      try {
+        const rawState = await AsyncStorage.getItem(STORAGE_KEY);
+
+        if (!rawState) {
+          return;
+        }
+
+        const savedState = JSON.parse(rawState) as Partial<PersistedAppState>;
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (Array.isArray(savedState.itemList)) {
+          setItemList(savedState.itemList);
+        }
+
+        if (typeof savedState.tokenBalance === "number") {
+          setTokenBalance(savedState.tokenBalance);
+        }
+
+        if (Array.isArray(savedState.borrowRequests)) {
+          setBorrowRequests(savedState.borrowRequests);
+        }
+
+        if (Array.isArray(savedState.ownerRentals)) {
+          setOwnerRentals(savedState.ownerRentals);
+        }
+
+        if (Array.isArray(savedState.favoriteIds)) {
+          setFavoriteIds(savedState.favoriteIds);
+        }
+
+        if (Array.isArray(savedState.conversations)) {
+          setConversations(savedState.conversations);
+        }
+
+        if (Array.isArray(savedState.tokenEvents)) {
+          setTokenEvents(savedState.tokenEvents);
+        }
+
+        if (typeof savedState.dailyBonusClaimed === "boolean") {
+          setDailyBonusClaimed(savedState.dailyBonusClaimed);
+        }
+
+        if (Array.isArray(savedState.notifications)) {
+          setNotifications(savedState.notifications);
+        }
+      } catch (error) {
+        console.warn("Failed to load Stud&Swap demo state", error);
+      } finally {
+        if (isMounted) {
+          setIsStorageReady(true);
+        }
+      }
+    };
+
+    loadPersistedState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isStorageReady) {
+      return;
+    }
+
+    const stateToPersist: PersistedAppState = {
+      itemList,
+      tokenBalance,
+      borrowRequests,
+      ownerRentals,
+      favoriteIds,
+      conversations,
+      tokenEvents,
+      dailyBonusClaimed,
+      notifications,
+    };
+
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateToPersist)).catch(
+      (error) => {
+        console.warn("Failed to save Stud&Swap demo state", error);
+      }
+    );
+  }, [
+    isStorageReady,
+    itemList,
+    tokenBalance,
+    borrowRequests,
+    ownerRentals,
+    favoriteIds,
+    conversations,
+    tokenEvents,
+    dailyBonusClaimed,
+    notifications,
   ]);
+
+  const resetDemoData = async () => {
+    setItemList(initialItems);
+    setTokenBalance(42);
+    setBorrowRequests([]);
+    setOwnerRentals([]);
+    setFavoriteIds([]);
+    setConversations([]);
+    setTokenEvents(initialTokenEvents);
+    setDailyBonusClaimed(false);
+    setNotifications(initialNotifications);
+    setSelectedCategory("All");
+    setOwnerFilter("all");
+    setSortOption("recommended");
+    setSelectedPickupFilter(null);
+    setSelectedItem(null);
+    setBorrowSummaryItem(null);
+    setSelectedConversationId(null);
+    setQuery("");
+    setScreen("home");
+
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.warn("Failed to clear Stud&Swap demo state", error);
+    }
+
+    Alert.alert("Demo data reset", "The app was restored to the initial demo state.");
+  };
 
   const selectedConversation = useMemo(() => {
     if (selectedConversationId === null) {
@@ -856,6 +1007,22 @@ export default function App() {
     }, 700);
   };
 
+  if (!isStorageReady) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style="dark" />
+        <Header />
+        <View style={styles.loadingState}>
+          <Ionicons name="save" size={34} color={colors.blue} />
+          <Text style={styles.loadingTitle}>Loading saved demo...</Text>
+          <Text style={styles.loadingText}>
+            Restoring listings, chats, favorites and token activity.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -936,6 +1103,7 @@ export default function App() {
                 onMarkReturned={markRequestReturned}
                 onMarkOwnerRentalReturned={markOwnerRentalReturned}
                 onClaimDailyBonus={claimDailyBonus}
+                onResetDemoData={resetDemoData}
               />
             )}
           </>
@@ -2200,6 +2368,15 @@ function AddItemScreen({
   );
 }
 
+type ProfileTab =
+  | "overview"
+  | "borrowing"
+  | "listings"
+  | "chats"
+  | "saved"
+  | "wallet"
+  | "alerts";
+
 function ProfileScreen({
   tokenBalance,
   borrowRequests,
@@ -2216,6 +2393,7 @@ function ProfileScreen({
   onMarkReturned,
   onMarkOwnerRentalReturned,
   onClaimDailyBonus,
+  onResetDemoData,
 }: {
   tokenBalance: number;
   borrowRequests: BorrowRequest[];
@@ -2232,201 +2410,458 @@ function ProfileScreen({
   onMarkReturned: (requestId: number) => void;
   onMarkOwnerRentalReturned: (rentalId: number) => void;
   onClaimDailyBonus: () => void;
+  onResetDemoData: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
+
+  const activeBorrowRequests = borrowRequests.filter(
+    (request) => request.status !== "Returned"
+  );
+  const activeOwnerRentals = ownerRentals.filter(
+    (rental) => rental.status !== "Returned"
+  );
+  const completedSwaps =
+    borrowRequests.filter((request) => request.status === "Returned").length +
+    ownerRentals.filter((rental) => rental.status === "Returned").length;
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>MS</Text>
+      <View style={styles.profileCardCompact}>
+        <View style={styles.avatarSmall}>
+          <Text style={styles.avatarSmallText}>MS</Text>
         </View>
 
-        <Text style={styles.profileName}>{currentUserName}</Text>
-        <Text style={styles.profileEmail}>student@university.pt</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.profileNameCompact}>{currentUserName}</Text>
+          <Text style={styles.profileEmailCompact}>student@university.pt</Text>
 
-        <View style={styles.verifiedBadge}>
-          <Ionicons name="checkmark-circle" size={16} color={colors.blue} />
-          <Text style={styles.verifiedText}>Verified university student</Text>
-        </View>
-      </View>
-
-      <View style={styles.walletCard}>
-        <View>
-          <Text style={styles.walletLabel}>Token balance</Text>
-          <Text style={styles.walletValue}>{tokenBalance}</Text>
-        </View>
-
-        <View style={styles.walletIcon}>
-          <Ionicons name="diamond" size={30} color={colors.orange} />
+          <View style={styles.verifiedBadgeCompact}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.blue} />
+            <Text style={styles.verifiedText}>Verified student</Text>
+          </View>
         </View>
       </View>
 
-      <Pressable
-        style={[
-          styles.bonusButton,
-          dailyBonusClaimed && styles.bonusButtonDisabled,
-        ]}
-        onPress={onClaimDailyBonus}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.profileTabsContent}
+        style={styles.profileTabs}
       >
+        <ProfileTabButton
+          icon="grid"
+          label="Stats"
+          active={activeTab === "overview"}
+          onPress={() => setActiveTab("overview")}
+        />
+        <ProfileTabButton
+          icon="document-text"
+          label="Borrowing"
+          count={activeBorrowRequests.length}
+          active={activeTab === "borrowing"}
+          onPress={() => setActiveTab("borrowing")}
+        />
+        <ProfileTabButton
+          icon="storefront"
+          label="My listings"
+          count={activeOwnerRentals.length}
+          active={activeTab === "listings"}
+          onPress={() => setActiveTab("listings")}
+        />
+        <ProfileTabButton
+          icon="chatbubbles"
+          label="Chats"
+          count={conversations.length}
+          active={activeTab === "chats"}
+          onPress={() => setActiveTab("chats")}
+        />
+        <ProfileTabButton
+          icon="heart"
+          label="Saved"
+          count={favoriteItems.length}
+          active={activeTab === "saved"}
+          onPress={() => setActiveTab("saved")}
+        />
+        <ProfileTabButton
+          icon="diamond"
+          label="Wallet"
+          active={activeTab === "wallet"}
+          onPress={() => setActiveTab("wallet")}
+        />
+        <ProfileTabButton
+          icon="notifications"
+          label="Alerts"
+          count={notifications.length}
+          active={activeTab === "alerts"}
+          onPress={() => setActiveTab("alerts")}
+        />
+      </ScrollView>
+
+      {activeTab === "overview" && (
         <View>
-          <Text style={styles.bonusButtonTitle}>
-            {dailyBonusClaimed ? "Campus bonus claimed" : "Claim daily campus bonus"}
-          </Text>
-          <Text style={styles.bonusButtonText}>
-            {dailyBonusClaimed
-              ? "Come back tomorrow for more tokens."
-              : "Get +5 tokens for staying active in the community."}
-          </Text>
-        </View>
+          <View style={styles.walletCard}>
+            <View>
+              <Text style={styles.walletLabel}>Token balance</Text>
+              <Text style={styles.walletValue}>{tokenBalance}</Text>
+            </View>
 
-        <Ionicons
-          name={dailyBonusClaimed ? "checkmark-circle" : "sparkles"}
-          size={24}
-          color={dailyBonusClaimed ? colors.muted : colors.orange}
-        />
-      </Pressable>
+            <View style={styles.walletIcon}>
+              <Ionicons name="diamond" size={30} color={colors.orange} />
+            </View>
+          </View>
 
-      <Text style={styles.sectionTitle}>Campus impact</Text>
+          <Pressable
+            style={[
+              styles.bonusButton,
+              dailyBonusClaimed && styles.bonusButtonDisabled,
+            ]}
+            onPress={onClaimDailyBonus}
+          >
+            <View>
+              <Text style={styles.bonusButtonTitle}>
+                {dailyBonusClaimed
+                  ? "Campus bonus claimed"
+                  : "Claim daily campus bonus"}
+              </Text>
+              <Text style={styles.bonusButtonText}>
+                {dailyBonusClaimed
+                  ? "Come back tomorrow for more tokens."
+                  : "Get +5 tokens for staying active in the community."}
+              </Text>
+            </View>
 
-      <View style={styles.impactGrid}>
-        <ImpactCard icon="swap-horizontal" value={`${borrowRequests.length}`} label="Borrowed" />
-        <ImpactCard icon="storefront" value={`${myListingsCount}`} label="Listed" />
-        <ImpactCard icon="leaf" value={`${ownerRentals.length + borrowRequests.length}`} label="Swaps" />
-      </View>
-
-      <Text style={[styles.sectionTitle, styles.requestsTitle]}>Notifications</Text>
-
-      <View style={styles.notificationsList}>
-        {notifications.slice(0, 4).map((notification) => (
-          <NotificationCard key={notification.id} notification={notification} />
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Trust & safety</Text>
-
-      <View style={styles.profileList}>
-        <ProfileRow icon="mail" title="University email" value="Verified" />
-        <ProfileRow
-          icon="shield-checkmark"
-          title="Deposit system"
-          value="Active"
-        />
-        <ProfileRow icon="star" title="Peer rating" value="4.9/5.0" />
-        <ProfileRow
-          icon="leaf"
-          title="Circular economy"
-          value={`${myListingsCount} items shared`}
-        />
-      </View>
-
-      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
-        My listings activity
-      </Text>
-
-      {ownerRentals.length > 0 ? (
-        <View style={styles.ownerRentalsList}>
-          {ownerRentals.map((rental) => (
-            <OwnerRentalCard
-              key={rental.id}
-              rental={rental}
-              onMarkReturned={() => onMarkOwnerRentalReturned(rental.id)}
+            <Ionicons
+              name={dailyBonusClaimed ? "checkmark-circle" : "sparkles"}
+              size={24}
+              color={dailyBonusClaimed ? colors.muted : colors.orange}
             />
-          ))}
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="storefront-outline" size={34} color={colors.muted} />
-          <Text style={styles.emptyTitle}>No active borrowers yet</Text>
-          <Text style={styles.emptyText}>
-            Publish an item and demo mode will simulate a student borrowing it.
+          </Pressable>
+
+          <Text style={styles.sectionTitle}>Campus impact</Text>
+
+          <View style={styles.impactGrid}>
+            <ImpactCard
+              icon="swap-horizontal"
+              value={`${borrowRequests.length}`}
+              label="Borrowed"
+            />
+            <ImpactCard
+              icon="storefront"
+              value={`${myListingsCount}`}
+              label="Listed"
+            />
+            <ImpactCard
+              icon="checkmark-done"
+              value={`${completedSwaps}`}
+              label="Returned"
+            />
+          </View>
+
+          <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+            Quick overview
           </Text>
+
+          <View style={styles.profileList}>
+            <ProfileRow
+              icon="document-text"
+              title="Active borrow requests"
+              value={`${activeBorrowRequests.length} active`}
+            />
+            <ProfileRow
+              icon="storefront"
+              title="Items currently borrowed from you"
+              value={`${activeOwnerRentals.length} active`}
+            />
+            <ProfileRow
+              icon="chatbubbles"
+              title="Conversations"
+              value={`${conversations.length} open chats`}
+            />
+            <ProfileRow
+              icon="heart"
+              title="Saved items"
+              value={`${favoriteItems.length} favorite items`}
+            />
+          </View>
+
+          <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+            Local storage
+          </Text>
+
+          <View style={styles.storageCard}>
+            <View style={styles.storageIcon}>
+              <Ionicons name="save" size={22} color={colors.blue} />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.storageTitle}>Demo data is saved locally</Text>
+              <Text style={styles.storageText}>
+                Favorites, listings, chats, requests, notifications and tokens stay after app reload.
+              </Text>
+            </View>
+          </View>
+
+          <Pressable style={styles.resetButton} onPress={onResetDemoData}>
+            <Ionicons name="refresh" size={18} color={colors.orange} />
+            <Text style={styles.resetButtonText}>Reset demo data</Text>
+          </Pressable>
+
+          <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+            Trust & safety
+          </Text>
+
+          <View style={styles.profileList}>
+            <ProfileRow icon="mail" title="University email" value="Verified" />
+            <ProfileRow
+              icon="shield-checkmark"
+              title="Deposit system"
+              value="Active"
+            />
+            <ProfileRow icon="star" title="Peer rating" value="4.9/5.0" />
+            <ProfileRow
+              icon="leaf"
+              title="Circular economy"
+              value={`${myListingsCount} items shared`}
+            />
+          </View>
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
-        Conversations
-      </Text>
-
-      {conversations.length > 0 ? (
-        <View style={styles.conversationList}>
-          {conversations.map((conversation) => (
-            <ConversationCard
-              key={conversation.id}
-              conversation={conversation}
-              onPress={() => onOpenConversation(conversation.id)}
-            />
-          ))}
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="chatbubbles-outline" size={34} color={colors.muted} />
-          <Text style={styles.emptyTitle}>No conversations yet</Text>
-          <Text style={styles.emptyText}>
-            Message an owner from item details to start a chat.
+      {activeTab === "borrowing" && (
+        <View>
+          <Text style={styles.tabPageTitle}>Borrow requests</Text>
+          <Text style={styles.tabPageSubtitle}>
+            Track what you requested, cancel pending reservations or mark accepted
+            items as returned.
           </Text>
+
+          {borrowRequests.length > 0 ? (
+            <View style={styles.requestsList}>
+              {borrowRequests.map((request) => (
+                <RequestCard
+                  key={request.id}
+                  request={request}
+                  onCancel={() => onCancelRequest(request.id)}
+                  onMarkReturned={() => onMarkReturned(request.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="document-text-outline"
+                size={34}
+                color={colors.muted}
+              />
+              <Text style={styles.emptyTitle}>No requests yet</Text>
+              <Text style={styles.emptyText}>
+                Borrow an item from the marketplace to see your request here.
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
-        Favorite items
-      </Text>
-
-      {favoriteItems.length > 0 ? (
-        <View style={styles.favoritesList}>
-          {favoriteItems.map((item) => (
-            <FavoriteCard
-              key={item.id}
-              item={item}
-              onPress={() => onOpenFavorite(item)}
-            />
-          ))}
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="heart-outline" size={34} color={colors.muted} />
-          <Text style={styles.emptyTitle}>No favorites yet</Text>
-          <Text style={styles.emptyText}>
-            Tap the heart icon on an item to save it here.
+      {activeTab === "listings" && (
+        <View>
+          <Text style={styles.tabPageTitle}>My listings activity</Text>
+          <Text style={styles.tabPageSubtitle}>
+            See who borrowed your items, due dates, pickup points and tokens earned.
           </Text>
+
+          {ownerRentals.length > 0 ? (
+            <View style={styles.ownerRentalsList}>
+              {ownerRentals.map((rental) => (
+                <OwnerRentalCard
+                  key={rental.id}
+                  rental={rental}
+                  onMarkReturned={() => onMarkOwnerRentalReturned(rental.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="storefront-outline" size={34} color={colors.muted} />
+              <Text style={styles.emptyTitle}>No active borrowers yet</Text>
+              <Text style={styles.emptyText}>
+                Publish an item and demo mode will simulate a student borrowing it.
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
-        Borrow requests
-      </Text>
-
-      {borrowRequests.length > 0 ? (
-        <View style={styles.requestsList}>
-          {borrowRequests.map((request) => (
-            <RequestCard
-              key={request.id}
-              request={request}
-              onCancel={() => onCancelRequest(request.id)}
-              onMarkReturned={() => onMarkReturned(request.id)}
-            />
-          ))}
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="document-text-outline" size={34} color={colors.muted} />
-          <Text style={styles.emptyTitle}>No requests yet</Text>
-          <Text style={styles.emptyText}>
-            Borrow an item from the marketplace to see your request here.
+      {activeTab === "chats" && (
+        <View>
+          <Text style={styles.tabPageTitle}>Conversations</Text>
+          <Text style={styles.tabPageSubtitle}>
+            Continue chats with item owners about pickup details and availability.
           </Text>
+
+          {conversations.length > 0 ? (
+            <View style={styles.conversationList}>
+              {conversations.map((conversation) => (
+                <ConversationCard
+                  key={conversation.id}
+                  conversation={conversation}
+                  onPress={() => onOpenConversation(conversation.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="chatbubbles-outline" size={34} color={colors.muted} />
+              <Text style={styles.emptyTitle}>No conversations yet</Text>
+              <Text style={styles.emptyText}>
+                Message an owner from item details to start a chat.
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
-      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
-        Token activity
-      </Text>
+      {activeTab === "saved" && (
+        <View>
+          <Text style={styles.tabPageTitle}>Favorite items</Text>
+          <Text style={styles.tabPageSubtitle}>
+            Your saved gear, tools and campus resources in one place.
+          </Text>
 
-      <View style={styles.tokenEventsList}>
-        {tokenEvents.map((event) => (
-          <TokenEventCard key={event.id} event={event} />
-        ))}
-      </View>
+          {favoriteItems.length > 0 ? (
+            <View style={styles.favoritesList}>
+              {favoriteItems.map((item) => (
+                <FavoriteCard
+                  key={item.id}
+                  item={item}
+                  onPress={() => onOpenFavorite(item)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="heart-outline" size={34} color={colors.muted} />
+              <Text style={styles.emptyTitle}>No favorites yet</Text>
+              <Text style={styles.emptyText}>
+                Tap the heart icon on an item to save it here.
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {activeTab === "wallet" && (
+        <View>
+          <View style={styles.walletCard}>
+            <View>
+              <Text style={styles.walletLabel}>Token balance</Text>
+              <Text style={styles.walletValue}>{tokenBalance}</Text>
+            </View>
+
+            <View style={styles.walletIcon}>
+              <Ionicons name="diamond" size={30} color={colors.orange} />
+            </View>
+          </View>
+
+          <Pressable
+            style={[
+              styles.bonusButton,
+              dailyBonusClaimed && styles.bonusButtonDisabled,
+            ]}
+            onPress={onClaimDailyBonus}
+          >
+            <View>
+              <Text style={styles.bonusButtonTitle}>
+                {dailyBonusClaimed
+                  ? "Campus bonus claimed"
+                  : "Claim daily campus bonus"}
+              </Text>
+              <Text style={styles.bonusButtonText}>
+                {dailyBonusClaimed
+                  ? "Come back tomorrow for more tokens."
+                  : "Get +5 tokens for staying active in the community."}
+              </Text>
+            </View>
+
+            <Ionicons
+              name={dailyBonusClaimed ? "checkmark-circle" : "sparkles"}
+              size={24}
+              color={dailyBonusClaimed ? colors.muted : colors.orange}
+            />
+          </Pressable>
+
+          <Text style={styles.tabPageTitle}>Token activity</Text>
+          <Text style={styles.tabPageSubtitle}>
+            Track reserved, earned, refunded and bonus tokens.
+          </Text>
+
+          <View style={styles.tokenEventsList}>
+            {tokenEvents.map((event) => (
+              <TokenEventCard key={event.id} event={event} />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {activeTab === "alerts" && (
+        <View>
+          <Text style={styles.tabPageTitle}>Notifications</Text>
+          <Text style={styles.tabPageSubtitle}>
+            Recent activity from requests, chats, listings and token events.
+          </Text>
+
+          <View style={styles.notificationsList}>
+            {notifications.map((notification) => (
+              <NotificationCard key={notification.id} notification={notification} />
+            ))}
+          </View>
+        </View>
+      )}
 
       <View style={styles.spacer} />
     </ScrollView>
+  );
+}
+
+function ProfileTabButton({
+  icon,
+  label,
+  count,
+  active,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  count?: number;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.profileTabButton, active && styles.profileTabButtonActive]}
+    >
+      <Ionicons
+        name={icon}
+        size={17}
+        color={active ? colors.white : colors.blue}
+      />
+      <Text style={[styles.profileTabText, active && styles.profileTabTextActive]}>
+        {label}
+      </Text>
+
+      {typeof count === "number" && count > 0 && (
+        <View style={[styles.profileTabCount, active && styles.profileTabCountActive]}>
+          <Text
+            style={[
+              styles.profileTabCountText,
+              active && styles.profileTabCountTextActive,
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -2797,6 +3232,26 @@ const colors = {
 };
 
 const styles = StyleSheet.create({
+  loadingState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    backgroundColor: colors.ivory,
+  },
+  loadingTitle: {
+    marginTop: 14,
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  loadingText: {
+    marginTop: 6,
+    color: colors.muted,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 20,
+  },
   safe: {
     flex: 1,
     backgroundColor: colors.ivory,
@@ -4071,6 +4526,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 5,
   },
+  storageCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  storageIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storageTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 15,
+  },
+  storageText: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  resetButton: {
+    marginTop: 10,
+    backgroundColor: "#FFF0EA",
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  resetButtonText: {
+    color: colors.orange,
+    fontWeight: "900",
+  },
   profileList: {
     marginTop: 12,
     gap: 10,
@@ -4110,6 +4608,117 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 22,
     marginBottom: 12,
+  },
+  profileCardCompact: {
+    marginTop: 14,
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  avatarSmall: {
+    width: 64,
+    height: 64,
+    borderRadius: 24,
+    backgroundColor: colors.blue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarSmallText: {
+    color: colors.white,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  profileNameCompact: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  profileEmailCompact: {
+    color: colors.muted,
+    marginTop: 2,
+    fontWeight: "700",
+  },
+  verifiedBadgeCompact: {
+    marginTop: 9,
+    backgroundColor: colors.lightBlue,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 5,
+  },
+  profileTabs: {
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  profileTabsContent: {
+    gap: 10,
+    paddingRight: 6,
+  },
+  profileTabButton: {
+    minHeight: 44,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  profileTabButtonActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  profileTabText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  profileTabTextActive: {
+    color: colors.white,
+  },
+  profileTabCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileTabCountActive: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  profileTabCountText: {
+    color: colors.blue,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  profileTabCountTextActive: {
+    color: colors.white,
+  },
+  tabPageTitle: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+  tabPageSubtitle: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+    marginTop: 6,
+    marginBottom: 16,
   },
   ownerRentalsList: {
     gap: 10,
