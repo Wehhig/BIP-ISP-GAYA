@@ -6,6 +6,8 @@ import {
   Alert,
   Animated,
   Easing,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -17,6 +19,7 @@ import {
 
 type Screen = "home" | "add" | "profile";
 type OwnerFilter = "all" | "others" | "mine";
+type RequestStatus = "Pending" | "Accepted" | "Returned";
 
 type Item = {
   id: number;
@@ -30,15 +33,21 @@ type Item = {
   deposit: boolean;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
+  pickupLocation: string;
+  availability: string;
+  imageColors: readonly [string, string];
 };
 
 type BorrowRequest = {
   id: number;
+  itemId: number;
   itemTitle: string;
   owner: string;
   tokens: number;
-  status: "Pending" | "Accepted" | "Returned";
+  status: RequestStatus;
   date: string;
+  duration: string;
+  pickupLocation: string;
 };
 
 type NewItemInput = {
@@ -67,7 +76,7 @@ type TokenEvent = {
   id: number;
   title: string;
   amount: number;
-  type: "earned" | "reserved";
+  type: "earned" | "reserved" | "refunded" | "bonus";
   date: string;
 };
 
@@ -75,6 +84,19 @@ const currentUserName = "Mock Student";
 
 const categories = ["All", "Audiovisual", "Prototyping", "Dress", "Study"];
 const addCategories = ["Audiovisual", "Prototyping", "Dress", "Study"];
+
+const durationOptions = [
+  { label: "1 day", multiplier: 1 },
+  { label: "3 days", multiplier: 2 },
+  { label: "1 week", multiplier: 4 },
+];
+
+const pickupOptions = [
+  "Main Library",
+  "Engineering Building",
+  "Student Dorm A",
+  "Campus Café",
+];
 
 const initialItems: Item[] = [
   {
@@ -90,6 +112,9 @@ const initialItems: Item[] = [
     description:
       "A compact 4K camera kit for student projects, interviews, promo videos and content creation.",
     icon: "camera",
+    pickupLocation: "Main Library",
+    availability: "Available today",
+    imageColors: ["#2D5BFF", "#66D9FF"],
   },
   {
     id: 2,
@@ -104,6 +129,9 @@ const initialItems: Item[] = [
     description:
       "Perfect for quick prototypes, electronics classes and hackathon demos.",
     icon: "hardware-chip",
+    pickupLocation: "Engineering Building",
+    availability: "Available tomorrow",
+    imageColors: ["#0F766E", "#B8F2A2"],
   },
   {
     id: 3,
@@ -118,6 +146,9 @@ const initialItems: Item[] = [
     description:
       "Smart blazer for job interviews, presentations and professional meetings.",
     icon: "shirt",
+    pickupLocation: "Campus Café",
+    availability: "Available this week",
+    imageColors: ["#171316", "#FF7048"],
   },
   {
     id: 4,
@@ -132,6 +163,9 @@ const initialItems: Item[] = [
     description:
       "USB microphone for podcasts, presentations, online interviews and university recordings.",
     icon: "mic",
+    pickupLocation: "Media Lab",
+    availability: "Available today",
+    imageColors: ["#7C3AED", "#2D5BFF"],
   },
   {
     id: 5,
@@ -146,6 +180,9 @@ const initialItems: Item[] = [
     description:
       "Lightweight tripod for filming, photography and group project presentations.",
     icon: "aperture",
+    pickupLocation: "Student Dorm A",
+    availability: "Available today",
+    imageColors: ["#FF7048", "#FFD166"],
   },
   {
     id: 6,
@@ -160,6 +197,9 @@ const initialItems: Item[] = [
     description:
       "Portable laptop stand for studying, coding sessions and remote meetings.",
     icon: "laptop",
+    pickupLocation: "Main Library",
+    availability: "Available today",
+    imageColors: ["#2D5BFF", "#B8F2A2"],
   },
 ];
 
@@ -183,6 +223,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("all");
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [borrowSummaryItem, setBorrowSummaryItem] = useState<Item | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [itemList, setItemList] = useState<Item[]>(initialItems);
@@ -195,10 +236,11 @@ export default function App() {
       id: 1001,
       title: "Welcome bonus",
       amount: 42,
-      type: "earned",
+      type: "bonus",
       date: "Today",
     },
   ]);
+  const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
 
   const selectedConversation = useMemo(() => {
     if (selectedConversationId === null) {
@@ -231,7 +273,8 @@ export default function App() {
           item.title.toLowerCase().includes(normalizedQuery) ||
           item.category.toLowerCase().includes(normalizedQuery) ||
           item.owner.toLowerCase().includes(normalizedQuery) ||
-          item.description.toLowerCase().includes(normalizedQuery)
+          item.description.toLowerCase().includes(normalizedQuery) ||
+          item.pickupLocation.toLowerCase().includes(normalizedQuery)
         );
       });
     }
@@ -254,6 +297,9 @@ export default function App() {
         newItem.description ||
         "New student listing added in demo mode. In the final app, this would be saved in a database.",
       icon: getIconForCategory(newItem.category),
+      pickupLocation: getRandomItem(pickupOptions),
+      availability: "Available today",
+      imageColors: getColorsForCategory(newItem.category),
     };
 
     setItemList((currentItems) => [item, ...currentItems]);
@@ -287,20 +333,7 @@ export default function App() {
     }, 4500);
   };
 
-  const handleBorrow = (item: Item) => {
-    const alreadyRequested = borrowRequests.some(
-      (request) =>
-        request.itemTitle === item.title && request.status === "Pending"
-    );
-
-    if (alreadyRequested) {
-      Alert.alert(
-        "Request already sent",
-        `You already have a pending request for ${item.title}.`
-      );
-      return;
-    }
-
+  const startBorrowSummary = (item: Item) => {
     if (item.owner === currentUserName) {
       Alert.alert(
         "This is your listing",
@@ -309,42 +342,161 @@ export default function App() {
       return;
     }
 
-    if (tokenBalance < item.tokens) {
+    setSelectedItem(null);
+    setBorrowSummaryItem(item);
+  };
+
+  const confirmBorrow = (item: Item, duration: string, pickupLocation: string, totalTokens: number) => {
+    const alreadyRequested = borrowRequests.some(
+      (request) =>
+        request.itemId === item.id && request.status !== "Returned"
+    );
+
+    if (alreadyRequested) {
       Alert.alert(
-        "Not enough tokens",
-        `You need ${item.tokens} tokens, but you only have ${tokenBalance}.`
+        "Request already exists",
+        `You already have an active request for ${item.title}.`
       );
       return;
     }
 
+    if (tokenBalance < totalTokens) {
+      Alert.alert(
+        "Not enough tokens",
+        `You need ${totalTokens} tokens, but you only have ${tokenBalance}.`
+      );
+      return;
+    }
+
+    const requestId = Date.now();
+
     const newRequest: BorrowRequest = {
-      id: Date.now(),
+      id: requestId,
+      itemId: item.id,
       itemTitle: item.title,
       owner: item.owner,
-      tokens: item.tokens,
+      tokens: totalTokens,
       status: "Pending",
       date: "Today",
+      duration,
+      pickupLocation,
     };
 
     setBorrowRequests((currentRequests) => [newRequest, ...currentRequests]);
-    setTokenBalance((currentBalance) => currentBalance - item.tokens);
+    setTokenBalance((currentBalance) => currentBalance - totalTokens);
     setTokenEvents((currentEvents) => [
       {
         id: Date.now() + Math.random(),
         title: `${item.title} request`,
-        amount: -item.tokens,
+        amount: -totalTokens,
         type: "reserved",
         date: "Today",
       },
       ...currentEvents,
     ]);
 
+    setBorrowSummaryItem(null);
     openConversation(item);
 
     Alert.alert(
       "Borrow request sent",
-      `Your request for ${item.title} was sent to ${item.owner}. ${item.tokens} tokens are now reserved.`
+      `Your request for ${item.title} was sent to ${item.owner}. ${totalTokens} tokens are now reserved.`
     );
+
+    setTimeout(() => {
+      setBorrowRequests((currentRequests) =>
+        currentRequests.map((request) =>
+          request.id === requestId ? { ...request, status: "Accepted" } : request
+        )
+      );
+
+      addOwnerMessage(
+        item,
+        `Accepted! Let's meet at ${pickupLocation}. I will bring ${item.title}.`
+      );
+    }, 2800);
+  };
+
+  const cancelRequest = (requestId: number) => {
+    const request = borrowRequests.find((item) => item.id === requestId);
+
+    if (!request || request.status === "Returned") {
+      return;
+    }
+
+    setBorrowRequests((currentRequests) =>
+      currentRequests.filter((item) => item.id !== requestId)
+    );
+
+    setTokenBalance((currentBalance) => currentBalance + request.tokens);
+    setTokenEvents((currentEvents) => [
+      {
+        id: Date.now() + Math.random(),
+        title: `${request.itemTitle} request cancelled`,
+        amount: request.tokens,
+        type: "refunded",
+        date: "Just now",
+      },
+      ...currentEvents,
+    ]);
+
+    Alert.alert(
+      "Request cancelled",
+      `${request.tokens} tokens were returned to your wallet.`
+    );
+  };
+
+  const markRequestReturned = (requestId: number) => {
+    const request = borrowRequests.find((item) => item.id === requestId);
+
+    if (!request || request.status === "Returned") {
+      return;
+    }
+
+    setBorrowRequests((currentRequests) =>
+      currentRequests.map((item) =>
+        item.id === requestId ? { ...item, status: "Returned" } : item
+      )
+    );
+
+    setTokenBalance((currentBalance) => currentBalance + 2);
+    setTokenEvents((currentEvents) => [
+      {
+        id: Date.now() + Math.random(),
+        title: `On-time return bonus for ${request.itemTitle}`,
+        amount: 2,
+        type: "bonus",
+        date: "Just now",
+      },
+      ...currentEvents,
+    ]);
+
+    Alert.alert(
+      "Item returned",
+      "Great! You earned 2 bonus tokens for returning the item on time."
+    );
+  };
+
+  const claimDailyBonus = () => {
+    if (dailyBonusClaimed) {
+      Alert.alert("Already claimed", "You already claimed today's campus bonus.");
+      return;
+    }
+
+    setDailyBonusClaimed(true);
+    setTokenBalance((currentBalance) => currentBalance + 5);
+    setTokenEvents((currentEvents) => [
+      {
+        id: Date.now() + Math.random(),
+        title: "Daily campus activity bonus",
+        amount: 5,
+        type: "bonus",
+        date: "Just now",
+      },
+      ...currentEvents,
+    ]);
+
+    Alert.alert("Bonus claimed", "You received 5 tokens for staying active on campus.");
   };
 
   const toggleFavorite = (itemId: number) => {
@@ -365,6 +517,7 @@ export default function App() {
 
     if (existingConversation) {
       setSelectedItem(null);
+      setBorrowSummaryItem(null);
       setSelectedConversationId(existingConversation.id);
       return;
     }
@@ -392,7 +545,40 @@ export default function App() {
       ...currentConversations,
     ]);
     setSelectedItem(null);
+    setBorrowSummaryItem(null);
     setSelectedConversationId(conversationId);
+  };
+
+  const addOwnerMessage = (item: Item, messageText: string) => {
+    setConversations((currentConversations) => {
+      const existingConversation = currentConversations.find(
+        (conversation) =>
+          conversation.itemId === item.id && conversation.owner === item.owner
+      );
+
+      if (!existingConversation) {
+        return currentConversations;
+      }
+
+      return currentConversations.map((conversation) => {
+        if (conversation.id !== existingConversation.id) {
+          return conversation;
+        }
+
+        return {
+          ...conversation,
+          messages: [
+            ...conversation.messages,
+            {
+              id: Date.now() + Math.random(),
+              from: "owner",
+              text: messageText,
+              time: "Now",
+            },
+          ],
+        };
+      });
+    });
   };
 
   const sendMessage = (conversationId: number, messageText: string) => {
@@ -458,11 +644,18 @@ export default function App() {
             onBack={() => setSelectedConversationId(null)}
             onSendMessage={sendMessage}
           />
+        ) : borrowSummaryItem ? (
+          <BorrowSummaryScreen
+            item={borrowSummaryItem}
+            tokenBalance={tokenBalance}
+            onBack={() => setBorrowSummaryItem(null)}
+            onConfirmBorrow={confirmBorrow}
+          />
         ) : selectedItem ? (
           <ItemDetails
             item={selectedItem}
             onBack={() => setSelectedItem(null)}
-            onBorrow={handleBorrow}
+            onStartBorrow={startBorrowSummary}
             onOpenConversation={openConversation}
             isFavorite={favoriteIds.includes(selectedItem.id)}
             onToggleFavorite={() => toggleFavorite(selectedItem.id)}
@@ -497,17 +690,21 @@ export default function App() {
                 )}
                 conversations={conversations}
                 tokenEvents={tokenEvents}
+                dailyBonusClaimed={dailyBonusClaimed}
                 onOpenFavorite={setSelectedItem}
                 onOpenConversation={(conversationId) =>
                   setSelectedConversationId(conversationId)
                 }
+                onCancelRequest={cancelRequest}
+                onMarkReturned={markRequestReturned}
+                onClaimDailyBonus={claimDailyBonus}
               />
             )}
           </>
         )}
       </View>
 
-      {!selectedItem && !selectedConversation && (
+      {!selectedItem && !selectedConversation && !borrowSummaryItem && (
         <BottomNavigation activeScreen={screen} onChangeScreen={setScreen} />
       )}
     </SafeAreaView>
@@ -530,6 +727,21 @@ function getIconForCategory(category: string): keyof typeof Ionicons.glyphMap {
       return "laptop";
     default:
       return "cube";
+  }
+}
+
+function getColorsForCategory(category: string): readonly [string, string] {
+  switch (category) {
+    case "Audiovisual":
+      return ["#2D5BFF", "#66D9FF"];
+    case "Prototyping":
+      return ["#0F766E", "#B8F2A2"];
+    case "Dress":
+      return ["#171316", "#FF7048"];
+    case "Study":
+      return ["#2D5BFF", "#B8F2A2"];
+    default:
+      return ["#2D5BFF", "#FF7048"];
   }
 }
 
@@ -760,42 +972,60 @@ function ItemCard({ item, onPress }: { item: Item; onPress: () => void }) {
 
   return (
     <Pressable onPress={onPress} style={styles.itemCard}>
-      <View style={styles.itemTop}>
-        <View style={styles.itemIcon}>
-          <Ionicons name={item.icon} size={24} color={colors.blue} />
+      <LinearGradient
+        colors={item.imageColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.itemImageCard}
+      >
+        <View style={styles.itemImageIcon}>
+          <Ionicons name={item.icon} size={30} color={colors.white} />
         </View>
 
-        <View style={styles.tokensBadge}>
-          <Ionicons name="diamond" size={13} color={colors.orange} />
-          <Text style={styles.tokensText}>{item.tokens}</Text>
+        <View style={styles.imageCardBadge}>
+          <Text style={styles.imageCardBadgeText}>{item.category}</Text>
         </View>
-      </View>
+      </LinearGradient>
 
-      <View style={styles.itemTitleRow}>
-        <Text style={styles.itemTitle}>{item.title}</Text>
-        {isMine && (
-          <View style={styles.mineBadge}>
-            <Text style={styles.mineBadgeText}>Mine</Text>
+      <View style={styles.itemContent}>
+        <View style={styles.itemTop}>
+          <View style={styles.tokensBadge}>
+            <Ionicons name="diamond" size={13} color={colors.orange} />
+            <Text style={styles.tokensText}>{item.tokens}</Text>
           </View>
-        )}
-      </View>
 
-      <Text style={styles.itemCategory}>{item.category}</Text>
-
-      <View style={styles.itemMeta}>
-        <View style={styles.metaRow}>
-          <Ionicons name="location-outline" size={14} color={colors.muted} />
-          <Text style={styles.metaText}>{item.distance}</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={colors.muted} />
+            <Text style={styles.metaText}>{item.distance}</Text>
+          </View>
         </View>
 
-        <View style={styles.metaRow}>
-          <Ionicons name="star" size={14} color={colors.orange} />
-          <Text style={styles.metaText}>{item.rating}</Text>
+        <View style={styles.itemTitleRow}>
+          <Text style={styles.itemTitle}>{item.title}</Text>
+          {isMine && (
+            <View style={styles.mineBadge}>
+              <Text style={styles.mineBadgeText}>Mine</Text>
+            </View>
+          )}
         </View>
 
-        <View style={styles.metaRow}>
-          <Ionicons name="person-circle-outline" size={14} color={colors.muted} />
-          <Text style={styles.metaText}>{isMine ? "You" : item.owner}</Text>
+        <Text style={styles.itemCategory}>{item.availability}</Text>
+
+        <View style={styles.itemMeta}>
+          <View style={styles.metaRow}>
+            <Ionicons name="star" size={14} color={colors.orange} />
+            <Text style={styles.metaText}>{item.rating}</Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            <Ionicons name="map-outline" size={14} color={colors.muted} />
+            <Text style={styles.metaText}>{item.pickupLocation}</Text>
+          </View>
+
+          <View style={styles.metaRow}>
+            <Ionicons name="person-circle-outline" size={14} color={colors.muted} />
+            <Text style={styles.metaText}>{isMine ? "You" : item.owner}</Text>
+          </View>
         </View>
       </View>
     </Pressable>
@@ -805,14 +1035,14 @@ function ItemCard({ item, onPress }: { item: Item; onPress: () => void }) {
 function ItemDetails({
   item,
   onBack,
-  onBorrow,
+  onStartBorrow,
   onOpenConversation,
   isFavorite,
   onToggleFavorite,
 }: {
   item: Item;
   onBack: () => void;
-  onBorrow: (item: Item) => void;
+  onStartBorrow: (item: Item) => void;
   onOpenConversation: (item: Item) => void;
   isFavorite: boolean;
   onToggleFavorite: () => void;
@@ -840,11 +1070,17 @@ function ItemDetails({
       </View>
 
       <LinearGradient
-        colors={[colors.ivory, colors.lightBlue]}
+        colors={item.imageColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.detailsHero}
       >
         <View style={styles.detailsIcon}>
-          <Ionicons name={item.icon} size={64} color={colors.blue} />
+          <Ionicons name={item.icon} size={64} color={colors.white} />
+        </View>
+
+        <View style={styles.detailsHeroBadge}>
+          <Text style={styles.detailsHeroBadgeText}>{item.availability}</Text>
         </View>
       </LinearGradient>
 
@@ -864,6 +1100,19 @@ function ItemDetails({
         </View>
 
         <Text style={styles.detailsDescription}>{item.description}</Text>
+
+        <View style={styles.locationBox}>
+          <View style={styles.locationIcon}>
+            <Ionicons name="map" size={22} color={colors.blue} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.locationTitle}>Pickup location</Text>
+            <Text style={styles.locationText}>
+              {item.pickupLocation} · {item.distance} from you
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.trustGrid}>
           <TrustBadge
@@ -900,7 +1149,7 @@ function ItemDetails({
           </View>
         ) : (
           <>
-            <Pressable style={styles.primaryButton} onPress={() => onBorrow(item)}>
+            <Pressable style={styles.primaryButton} onPress={() => onStartBorrow(item)}>
               <Text style={styles.primaryButtonText}>Request to borrow</Text>
               <Ionicons name="arrow-forward" size={18} color={colors.white} />
             </Pressable>
@@ -913,6 +1162,136 @@ function ItemDetails({
             </Pressable>
           </>
         )}
+      </View>
+
+      <View style={styles.spacer} />
+    </ScrollView>
+  );
+}
+
+function BorrowSummaryScreen({
+  item,
+  tokenBalance,
+  onBack,
+  onConfirmBorrow,
+}: {
+  item: Item;
+  tokenBalance: number;
+  onBack: () => void;
+  onConfirmBorrow: (
+    item: Item,
+    duration: string,
+    pickupLocation: string,
+    totalTokens: number
+  ) => void;
+}) {
+  const [selectedDuration, setSelectedDuration] = useState(durationOptions[0]);
+  const [selectedPickup, setSelectedPickup] = useState(item.pickupLocation);
+
+  const totalTokens = item.tokens * selectedDuration.multiplier;
+  const canAfford = tokenBalance >= totalTokens;
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.detailsTop}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
+        </Pressable>
+
+        <Text style={styles.detailsTopText}>Borrow summary</Text>
+      </View>
+
+      <View style={styles.summaryCard}>
+        <LinearGradient
+          colors={item.imageColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.summaryImage}
+        >
+          <Ionicons name={item.icon} size={48} color={colors.white} />
+        </LinearGradient>
+
+        <Text style={styles.summaryTitle}>{item.title}</Text>
+        <Text style={styles.summaryOwner}>Owner: {item.owner}</Text>
+
+        <View style={styles.summaryDivider} />
+
+        <Text style={styles.inputLabel}>Borrow duration</Text>
+        <View style={styles.optionGrid}>
+          {durationOptions.map((option) => (
+            <Pressable
+              key={option.label}
+              onPress={() => setSelectedDuration(option)}
+              style={[
+                styles.optionPill,
+                selectedDuration.label === option.label && styles.optionPillActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.optionPillText,
+                  selectedDuration.label === option.label && styles.optionPillTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.inputLabel}>Pickup point</Text>
+        <View style={styles.pickupList}>
+          {[item.pickupLocation, ...pickupOptions.filter((location) => location !== item.pickupLocation)]
+            .slice(0, 4)
+            .map((location) => (
+              <Pressable
+                key={location}
+                onPress={() => setSelectedPickup(location)}
+                style={[
+                  styles.pickupOption,
+                  selectedPickup === location && styles.pickupOptionActive,
+                ]}
+              >
+                <Ionicons
+                  name={selectedPickup === location ? "radio-button-on" : "radio-button-off"}
+                  size={18}
+                  color={selectedPickup === location ? colors.blue : colors.muted}
+                />
+                <Text style={styles.pickupOptionText}>{location}</Text>
+              </Pressable>
+            ))}
+        </View>
+
+        <View style={styles.costBox}>
+          <View>
+            <Text style={styles.costLabel}>Total token cost</Text>
+            <Text style={styles.costHint}>
+              Your balance after request: {tokenBalance - totalTokens}
+            </Text>
+          </View>
+
+          <View style={styles.costBadge}>
+            <Ionicons name="diamond" size={18} color={colors.orange} />
+            <Text style={styles.costValue}>{totalTokens}</Text>
+          </View>
+        </View>
+
+        {!canAfford && (
+          <Text style={styles.notEnoughText}>
+            You do not have enough tokens for this duration.
+          </Text>
+        )}
+
+        <Pressable
+          style={[styles.primaryButton, !canAfford && styles.disabledButton]}
+          disabled={!canAfford}
+          onPress={() =>
+            onConfirmBorrow(item, selectedDuration.label, selectedPickup, totalTokens)
+          }
+        >
+          <Text style={styles.primaryButtonText}>Confirm request</Text>
+          <Ionicons name="checkmark-circle" size={18} color={colors.white} />
+        </Pressable>
       </View>
 
       <View style={styles.spacer} />
@@ -961,71 +1340,80 @@ function ChatScreen({
   };
 
   return (
-    <View style={styles.chatScreen}>
-      <View style={styles.chatTop}>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </Pressable>
+    <KeyboardAvoidingView
+      style={styles.chatKeyboardAvoiding}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 8}
+    >
+      <View style={styles.chatScreen}>
+        <View style={styles.chatTop}>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
 
-        <View style={{ flex: 1 }}>
-          <Text style={styles.chatOwner}>{conversation.owner}</Text>
-          <Text style={styles.chatItem}>About: {conversation.itemTitle}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.chatOwner}>{conversation.owner}</Text>
+            <Text style={styles.chatItem}>About: {conversation.itemTitle}</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.chatMessages}
+          contentContainerStyle={styles.chatMessagesContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {conversation.messages.map((chatMessage) => (
+            <View
+              key={chatMessage.id}
+              style={[
+                styles.messageBubble,
+                chatMessage.from === "me"
+                  ? styles.myMessageBubble
+                  : styles.ownerMessageBubble,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.messageText,
+                  chatMessage.from === "me"
+                    ? styles.myMessageText
+                    : styles.ownerMessageText,
+                ]}
+              >
+                {chatMessage.text}
+              </Text>
+              <Text
+                style={[
+                  styles.messageTime,
+                  chatMessage.from === "me"
+                    ? styles.myMessageTime
+                    : styles.ownerMessageTime,
+                ]}
+              >
+                {chatMessage.time}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.chatInputBar}>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Write a message..."
+            placeholderTextColor={colors.muted}
+            style={styles.chatInput}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+          />
+
+          <Pressable style={styles.sendButton} onPress={handleSend}>
+            <Ionicons name="send" size={18} color={colors.white} />
+          </Pressable>
         </View>
       </View>
-
-      <ScrollView
-        style={styles.chatMessages}
-        contentContainerStyle={styles.chatMessagesContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {conversation.messages.map((chatMessage) => (
-          <View
-            key={chatMessage.id}
-            style={[
-              styles.messageBubble,
-              chatMessage.from === "me"
-                ? styles.myMessageBubble
-                : styles.ownerMessageBubble,
-            ]}
-          >
-            <Text
-              style={[
-                styles.messageText,
-                chatMessage.from === "me"
-                  ? styles.myMessageText
-                  : styles.ownerMessageText,
-              ]}
-            >
-              {chatMessage.text}
-            </Text>
-            <Text
-              style={[
-                styles.messageTime,
-                chatMessage.from === "me"
-                  ? styles.myMessageTime
-                  : styles.ownerMessageTime,
-              ]}
-            >
-              {chatMessage.time}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
-
-      <View style={styles.chatInputBar}>
-        <TextInput
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Write a message..."
-          placeholderTextColor={colors.muted}
-          style={styles.chatInput}
-        />
-
-        <Pressable style={styles.sendButton} onPress={handleSend}>
-          <Ionicons name="send" size={18} color={colors.white} />
-        </Pressable>
-      </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1150,8 +1538,12 @@ function ProfileScreen({
   favoriteItems,
   conversations,
   tokenEvents,
+  dailyBonusClaimed,
   onOpenFavorite,
   onOpenConversation,
+  onCancelRequest,
+  onMarkReturned,
+  onClaimDailyBonus,
 }: {
   tokenBalance: number;
   borrowRequests: BorrowRequest[];
@@ -1159,8 +1551,12 @@ function ProfileScreen({
   favoriteItems: Item[];
   conversations: Conversation[];
   tokenEvents: TokenEvent[];
+  dailyBonusClaimed: boolean;
   onOpenFavorite: (item: Item) => void;
   onOpenConversation: (conversationId: number) => void;
+  onCancelRequest: (requestId: number) => void;
+  onMarkReturned: (requestId: number) => void;
+  onClaimDailyBonus: () => void;
 }) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -1188,6 +1584,31 @@ function ProfileScreen({
           <Ionicons name="diamond" size={30} color={colors.orange} />
         </View>
       </View>
+
+      <Pressable
+        style={[
+          styles.bonusButton,
+          dailyBonusClaimed && styles.bonusButtonDisabled,
+        ]}
+        onPress={onClaimDailyBonus}
+      >
+        <View>
+          <Text style={styles.bonusButtonTitle}>
+            {dailyBonusClaimed ? "Campus bonus claimed" : "Claim daily campus bonus"}
+          </Text>
+          <Text style={styles.bonusButtonText}>
+            {dailyBonusClaimed
+              ? "Come back tomorrow for more tokens."
+              : "Get +5 tokens for staying active in the community."}
+          </Text>
+        </View>
+
+        <Ionicons
+          name={dailyBonusClaimed ? "checkmark-circle" : "sparkles"}
+          size={24}
+          color={dailyBonusClaimed ? colors.muted : colors.orange}
+        />
+      </Pressable>
 
       <Text style={styles.sectionTitle}>Trust & safety</Text>
 
@@ -1261,7 +1682,12 @@ function ProfileScreen({
       {borrowRequests.length > 0 ? (
         <View style={styles.requestsList}>
           {borrowRequests.map((request) => (
-            <RequestCard key={request.id} request={request} />
+            <RequestCard
+              key={request.id}
+              request={request}
+              onCancel={() => onCancelRequest(request.id)}
+              onMarkReturned={() => onMarkReturned(request.id)}
+            />
           ))}
         </View>
       ) : (
@@ -1328,14 +1754,14 @@ function FavoriteCard({
 }) {
   return (
     <Pressable style={styles.favoriteCard} onPress={onPress}>
-      <View style={styles.favoriteIcon}>
-        <Ionicons name={item.icon} size={22} color={colors.blue} />
-      </View>
+      <LinearGradient colors={item.imageColors} style={styles.favoriteIcon}>
+        <Ionicons name={item.icon} size={22} color={colors.white} />
+      </LinearGradient>
 
       <View style={{ flex: 1 }}>
         <Text style={styles.favoriteTitle}>{item.title}</Text>
         <Text style={styles.favoriteMeta}>
-          {item.category} · {item.tokens} tokens
+          {item.category} · {item.tokens} tokens · {item.pickupLocation}
         </Text>
       </View>
 
@@ -1344,7 +1770,15 @@ function FavoriteCard({
   );
 }
 
-function RequestCard({ request }: { request: BorrowRequest }) {
+function RequestCard({
+  request,
+  onCancel,
+  onMarkReturned,
+}: {
+  request: BorrowRequest;
+  onCancel: () => void;
+  onMarkReturned: () => void;
+}) {
   return (
     <View style={styles.requestCard}>
       <View style={styles.requestHeader}>
@@ -1353,8 +1787,22 @@ function RequestCard({ request }: { request: BorrowRequest }) {
           <Text style={styles.requestOwner}>Owner: {request.owner}</Text>
         </View>
 
-        <View style={styles.requestStatus}>
-          <Text style={styles.requestStatusText}>{request.status}</Text>
+        <View
+          style={[
+            styles.requestStatus,
+            request.status === "Accepted" && styles.requestStatusAccepted,
+            request.status === "Returned" && styles.requestStatusReturned,
+          ]}
+        >
+          <Text
+            style={[
+              styles.requestStatusText,
+              request.status === "Accepted" && styles.requestStatusTextAccepted,
+              request.status === "Returned" && styles.requestStatusTextReturned,
+            ]}
+          >
+            {request.status}
+          </Text>
         </View>
       </View>
 
@@ -1366,28 +1814,45 @@ function RequestCard({ request }: { request: BorrowRequest }) {
 
         <View style={styles.metaRow}>
           <Ionicons name="time-outline" size={14} color={colors.muted} />
-          <Text style={styles.metaText}>{request.date}</Text>
+          <Text style={styles.metaText}>{request.duration}</Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="map-outline" size={14} color={colors.muted} />
+          <Text style={styles.metaText}>{request.pickupLocation}</Text>
         </View>
       </View>
+
+      {request.status === "Pending" && (
+        <Pressable style={styles.requestActionButton} onPress={onCancel}>
+          <Text style={styles.requestActionText}>Cancel and refund</Text>
+        </Pressable>
+      )}
+
+      {request.status === "Accepted" && (
+        <Pressable style={styles.requestActionButton} onPress={onMarkReturned}>
+          <Text style={styles.requestActionText}>Mark as returned</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
 
 function TokenEventCard({ event }: { event: TokenEvent }) {
-  const isEarned = event.amount > 0;
+  const isPositive = event.amount > 0;
 
   return (
     <View style={styles.tokenEventCard}>
       <View
         style={[
           styles.tokenEventIcon,
-          isEarned ? styles.tokenEventIconEarned : styles.tokenEventIconReserved,
+          isPositive ? styles.tokenEventIconEarned : styles.tokenEventIconReserved,
         ]}
       >
         <Ionicons
-          name={isEarned ? "arrow-up" : "arrow-down"}
+          name={isPositive ? "arrow-up" : "arrow-down"}
           size={18}
-          color={isEarned ? colors.blue : colors.orange}
+          color={isPositive ? colors.blue : colors.orange}
         />
       </View>
 
@@ -1399,10 +1864,10 @@ function TokenEventCard({ event }: { event: TokenEvent }) {
       <Text
         style={[
           styles.tokenEventAmount,
-          isEarned ? styles.tokenEventAmountEarned : styles.tokenEventAmountReserved,
+          isPositive ? styles.tokenEventAmountEarned : styles.tokenEventAmountReserved,
         ]}
       >
-        {isEarned ? "+" : ""}
+        {isPositive ? "+" : ""}
         {event.amount}
       </Text>
     </View>
@@ -1698,23 +2163,43 @@ const styles = StyleSheet.create({
   itemCard: {
     backgroundColor: colors.white,
     borderRadius: 24,
-    padding: 18,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  itemImageCard: {
+    height: 126,
+    padding: 16,
+    justifyContent: "space-between",
+  },
+  itemImageIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageCardBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  imageCardBadgeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  itemContent: {
+    padding: 18,
   },
   itemTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
-  },
-  itemIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    backgroundColor: colors.lightBlue,
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 14,
   },
   tokensBadge: {
     flexDirection: "row",
@@ -1826,14 +2311,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
+    overflow: "hidden",
   },
   detailsIcon: {
     width: 130,
     height: 130,
     borderRadius: 42,
-    backgroundColor: colors.white,
+    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  detailsHeroBadge: {
+    position: "absolute",
+    bottom: 18,
+    left: 18,
+    backgroundColor: "rgba(255,255,255,0.26)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  detailsHeroBadgeText: {
+    color: colors.white,
+    fontWeight: "900",
+    fontSize: 12,
   },
   detailsContent: {
     backgroundColor: colors.white,
@@ -1875,6 +2375,32 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 16,
     fontSize: 15,
+  },
+  locationBox: {
+    marginTop: 18,
+    backgroundColor: colors.ivory,
+    borderRadius: 20,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  locationIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationTitle: {
+    color: colors.text,
+    fontWeight: "900",
+  },
+  locationText: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginTop: 3,
   },
   trustGrid: {
     marginTop: 20,
@@ -1926,6 +2452,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  disabledButton: {
+    opacity: 0.45,
+  },
   primaryButtonText: {
     color: colors.white,
     fontWeight: "900",
@@ -1942,6 +2471,122 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: colors.text,
     fontWeight: "900",
+  },
+  summaryCard: {
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryImage: {
+    height: 140,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  summaryTitle: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "900",
+  },
+  summaryOwner: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 18,
+  },
+  optionGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  optionPill: {
+    flex: 1,
+    backgroundColor: colors.ivory,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  optionPillActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  optionPillText: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  optionPillTextActive: {
+    color: colors.white,
+  },
+  pickupList: {
+    gap: 8,
+  },
+  pickupOption: {
+    backgroundColor: colors.ivory,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pickupOptionActive: {
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.blue,
+  },
+  pickupOptionText: {
+    color: colors.text,
+    fontWeight: "800",
+  },
+  costBox: {
+    marginTop: 18,
+    backgroundColor: colors.dark,
+    borderRadius: 22,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  costLabel: {
+    color: colors.white,
+    fontWeight: "900",
+  },
+  costHint: {
+    color: "rgba(255,255,255,0.65)",
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  costBadge: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  costValue: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  notEnoughText: {
+    color: colors.orange,
+    fontWeight: "800",
+    marginTop: 12,
+  },
+  chatKeyboardAvoiding: {
+    flex: 1,
+    backgroundColor: colors.ivory,
   },
   chatScreen: {
     flex: 1,
@@ -2015,7 +2660,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 22,
     padding: 8,
-    marginBottom: 12,
+    marginBottom: Platform.OS === "android" ? 8 : 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -2027,6 +2672,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontWeight: "700",
     paddingHorizontal: 10,
+    minHeight: 42,
   },
   sendButton: {
     width: 42,
@@ -2149,7 +2795,7 @@ const styles = StyleSheet.create({
   },
   walletCard: {
     marginTop: 18,
-    marginBottom: 24,
+    marginBottom: 12,
     backgroundColor: colors.dark,
     borderRadius: 28,
     padding: 22,
@@ -2175,6 +2821,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  bonusButton: {
+    backgroundColor: colors.white,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  bonusButtonDisabled: {
+    opacity: 0.72,
+  },
+  bonusButtonTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 15,
+  },
+  bonusButtonText: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 3,
+    lineHeight: 18,
   },
   profileList: {
     marginTop: 12,
@@ -2270,7 +2942,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: colors.lightBlue,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2315,16 +2986,39 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
+  requestStatusAccepted: {
+    backgroundColor: "#ECFDF5",
+  },
+  requestStatusReturned: {
+    backgroundColor: "#F3F4F6",
+  },
   requestStatusText: {
     color: colors.blue,
     fontWeight: "900",
     fontSize: 12,
+  },
+  requestStatusTextAccepted: {
+    color: "#059669",
+  },
+  requestStatusTextReturned: {
+    color: colors.muted,
   },
   requestMeta: {
     flexDirection: "row",
     gap: 14,
     marginTop: 12,
     flexWrap: "wrap",
+  },
+  requestActionButton: {
+    marginTop: 14,
+    backgroundColor: colors.ivory,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+  },
+  requestActionText: {
+    color: colors.text,
+    fontWeight: "900",
   },
   tokenEventsList: {
     gap: 10,
