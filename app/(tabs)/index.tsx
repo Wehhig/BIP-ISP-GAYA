@@ -20,6 +20,7 @@ import {
 
 type Screen = "home" | "add" | "profile";
 type OwnerFilter = "all" | "others" | "mine";
+type PickupFilter = string | null;
 type SortOption = "recommended" | "nearest" | "tokens" | "rating";
 type RequestStatus = "Pending" | "Accepted" | "Returned";
 
@@ -264,6 +265,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>("recommended");
+  const [selectedPickupFilter, setSelectedPickupFilter] = useState<PickupFilter>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [borrowSummaryItem, setBorrowSummaryItem] = useState<Item | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
@@ -321,6 +323,10 @@ export default function App() {
       result = result.filter((item) => !item.isPaused);
     }
 
+    if (selectedPickupFilter) {
+      result = result.filter((item) => item.pickupLocation === selectedPickupFilter);
+    }
+
     const normalizedQuery = query.trim().toLowerCase();
 
     if (normalizedQuery.length > 0) {
@@ -350,7 +356,7 @@ export default function App() {
     }
 
     return sortedResult;
-  }, [itemList, selectedCategory, ownerFilter, sortOption, query]);
+  }, [itemList, selectedCategory, ownerFilter, selectedPickupFilter, sortOption, query]);
 
   const pushNotification = (
     title: string,
@@ -893,7 +899,10 @@ export default function App() {
                 onChangeOwnerFilter={setOwnerFilter}
                 sortOption={sortOption}
                 onChangeSortOption={setSortOption}
+                selectedPickupFilter={selectedPickupFilter}
+                onChangePickupFilter={setSelectedPickupFilter}
                 ownerRentals={ownerRentals}
+                allItems={itemList}
                 items={filteredItems}
                 onOpenItem={setSelectedItem}
                 query={query}
@@ -1037,7 +1046,10 @@ function HomeScreen({
   onChangeOwnerFilter,
   sortOption,
   onChangeSortOption,
+  selectedPickupFilter,
+  onChangePickupFilter,
   ownerRentals,
+  allItems,
   items,
   onOpenItem,
   query,
@@ -1049,12 +1061,36 @@ function HomeScreen({
   onChangeOwnerFilter: (filter: OwnerFilter) => void;
   sortOption: SortOption;
   onChangeSortOption: (option: SortOption) => void;
+  selectedPickupFilter: PickupFilter;
+  onChangePickupFilter: (location: PickupFilter) => void;
   ownerRentals: OwnerRental[];
+  allItems: Item[];
   items: Item[];
   onOpenItem: (item: Item) => void;
   query: string;
   onChangeQuery: (value: string) => void;
 }) {
+  const borrowableLocationItems = allItems.filter(
+    (item) => item.owner !== currentUserName && !item.isPaused
+  );
+
+  const getLocationCount = (location: string) =>
+    borrowableLocationItems.filter((item) => item.pickupLocation === location).length;
+
+  const activeFilterCount =
+    (selectedCategory !== "All" ? 1 : 0) +
+    (ownerFilter !== "all" ? 1 : 0) +
+    (sortOption !== "recommended" ? 1 : 0) +
+    (selectedPickupFilter ? 1 : 0) +
+    (query.trim().length > 0 ? 1 : 0);
+
+  const clearFilters = () => {
+    onSelectCategory("All");
+    onChangeOwnerFilter("all");
+    onChangeSortOption("recommended");
+    onChangePickupFilter(null);
+    onChangeQuery("");
+  };
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <LinearGradient
@@ -1101,98 +1137,143 @@ function HomeScreen({
         )}
       </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Marketplace</Text>
-        <Text style={styles.sectionLink}>{items.length} items</Text>
-      </View>
+      <View style={styles.filterPanel}>
+        <View style={styles.filterPanelHeader}>
+          <View>
+            <Text style={styles.filterPanelTitle}>Filters & sorting</Text>
+            <Text style={styles.filterPanelSubtitle}>
+              {activeFilterCount === 0
+                ? "Showing recommended campus items"
+                : `${activeFilterCount} active filter${activeFilterCount === 1 ? "" : "s"}`}
+            </Text>
+          </View>
 
-      <View style={styles.ownerFilterRow}>
-        <OwnerFilterPill
-          label="All"
-          active={ownerFilter === "all"}
-          onPress={() => onChangeOwnerFilter("all")}
-        />
-        <OwnerFilterPill
-          label="From others"
-          active={ownerFilter === "others"}
-          onPress={() => onChangeOwnerFilter("others")}
-        />
-        <OwnerFilterPill
-          label="My listings"
-          active={ownerFilter === "mine"}
-          onPress={() => onChangeOwnerFilter("mine")}
-        />
-      </View>
+          {activeFilterCount > 0 && (
+            <Pressable onPress={clearFilters} style={styles.clearFiltersButton}>
+              <Text style={styles.clearFiltersText}>Clear</Text>
+            </Pressable>
+          )}
+        </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Sort by</Text>
-        <Text style={styles.sectionLink}>Smart list</Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.sortOptions}
-      >
-        {sortOptions.map((option) => (
-          <SortPill
-            key={option.value}
-            option={option}
-            active={sortOption === option.value}
-            onPress={() => onChangeSortOption(option.value)}
+        <Text style={styles.filterGroupLabel}>Marketplace scope</Text>
+        <View style={styles.ownerFilterRowCompact}>
+          <OwnerFilterPill
+            label="All"
+            active={ownerFilter === "all"}
+            onPress={() => onChangeOwnerFilter("all")}
           />
-        ))}
-      </ScrollView>
+          <OwnerFilterPill
+            label="From others"
+            active={ownerFilter === "others"}
+            onPress={() => onChangeOwnerFilter("others")}
+          />
+          <OwnerFilterPill
+            label="My listings"
+            active={ownerFilter === "mine"}
+            onPress={() => onChangeOwnerFilter("mine")}
+          />
+        </View>
+
+        <Text style={styles.filterGroupLabel}>Sort by</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sortOptionsCompact}
+        >
+          {sortOptions.map((option) => (
+            <SortPill
+              key={option.value}
+              option={option}
+              active={sortOption === option.value}
+              onPress={() => onChangeSortOption(option.value)}
+            />
+          ))}
+        </ScrollView>
+
+        <Text style={styles.filterGroupLabel}>Categories</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesCompact}
+        >
+          {categories.map((category) => (
+            <Pressable
+              key={category}
+              onPress={() => onSelectCategory(category)}
+              style={[
+                styles.categoryPill,
+                selectedCategory === category && styles.categoryPillActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoryText,
+                  selectedCategory === category && styles.categoryTextActive,
+                ]}
+              >
+                {category}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Campus pickup points</Text>
-        <Text style={styles.sectionLink}>Mock map</Text>
+        <Text style={styles.sectionTitle}>Campus map</Text>
+        <Text style={styles.sectionLink}>Tap location</Text>
       </View>
+
+      <CampusMapMock
+        selectedLocation={selectedPickupFilter}
+        getLocationCount={getLocationCount}
+        onSelectLocation={(location) => onChangePickupFilter(location)}
+      />
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.hotspotList}
       >
+        <CampusHotspotCard
+          location="All locations"
+          count={borrowableLocationItems.length}
+          active={!selectedPickupFilter}
+          onPress={() => onChangePickupFilter(null)}
+        />
         {pickupOptions.map((location) => (
           <CampusHotspotCard
             key={location}
             location={location}
-            count={items.filter((item) => item.pickupLocation === location).length}
+            count={getLocationCount(location)}
+            active={selectedPickupFilter === location}
+            onPress={() => onChangePickupFilter(location)}
           />
         ))}
       </ScrollView>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Categories</Text>
-        <Text style={styles.sectionLink}>Explore</Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categories}
-      >
-        {categories.map((category) => (
-          <Pressable
-            key={category}
-            onPress={() => onSelectCategory(category)}
-            style={[
-              styles.categoryPill,
-              selectedCategory === category && styles.categoryPillActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.categoryText,
-                selectedCategory === category && styles.categoryTextActive,
-              ]}
-            >
-              {category}
+      {selectedPickupFilter && (
+        <View style={styles.activeLocationBanner}>
+          <View style={styles.activeLocationIcon}>
+            <Ionicons name="map" size={18} color={colors.blue} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.activeLocationTitle}>
+              Showing items at {selectedPickupFilter}
             </Text>
+            <Text style={styles.activeLocationText}>
+              This only filters marketplace results. Borrow pickup can still be changed later.
+            </Text>
+          </View>
+          <Pressable onPress={() => onChangePickupFilter(null)}>
+            <Ionicons name="close-circle" size={22} color={colors.muted} />
           </Pressable>
-        ))}
-      </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Available items</Text>
+        <Text style={styles.sectionLink}>{items.length} results</Text>
+      </View>
 
       {items.length > 0 ? (
         <View style={styles.itemsGrid}>
@@ -1277,20 +1358,112 @@ function SortPill({
 function CampusHotspotCard({
   location,
   count,
+  active,
+  onPress,
 }: {
   location: string;
   count: number;
+  active: boolean;
+  onPress: () => void;
 }) {
+  const isAll = location === "All locations";
+
   return (
-    <View style={styles.hotspotCard}>
-      <View style={styles.hotspotIcon}>
-        <Ionicons name="location" size={18} color={colors.blue} />
+    <Pressable
+      onPress={onPress}
+      style={[styles.hotspotCard, active && styles.hotspotCardActive]}
+    >
+      <View style={[styles.hotspotIcon, active && styles.hotspotIconActive]}>
+        <Ionicons
+          name={isAll ? "apps" : "location"}
+          size={18}
+          color={active ? colors.white : colors.blue}
+        />
       </View>
-      <Text style={styles.hotspotTitle}>{location}</Text>
-      <Text style={styles.hotspotMeta}>
+      <Text style={[styles.hotspotTitle, active && styles.hotspotTitleActive]}>
+        {location}
+      </Text>
+      <Text style={[styles.hotspotMeta, active && styles.hotspotMetaActive]}>
         {count === 1 ? "1 item nearby" : `${count} items nearby`}
       </Text>
+    </Pressable>
+  );
+}
+
+function CampusMapMock({
+  selectedLocation,
+  getLocationCount,
+  onSelectLocation,
+}: {
+  selectedLocation: PickupFilter;
+  getLocationCount: (location: string) => number;
+  onSelectLocation: (location: string) => void;
+}) {
+  return (
+    <View style={styles.mapCard}>
+      <View style={styles.mapGridLineVertical} />
+      <View style={styles.mapGridLineHorizontal} />
+      <View style={[styles.mapRoad, styles.mapRoadPrimary]} />
+      <View style={[styles.mapRoad, styles.mapRoadSecondary]} />
+
+      {pickupOptions.map((location, index) => (
+        <MapPin
+          key={location}
+          location={location}
+          index={index}
+          count={getLocationCount(location)}
+          active={selectedLocation === location}
+          onPress={() => onSelectLocation(location)}
+        />
+      ))}
+
+      <View style={styles.mapLegend}>
+        <Ionicons name="navigate" size={14} color={colors.blue} />
+        <Text style={styles.mapLegendText}>Mock campus map</Text>
+      </View>
     </View>
+  );
+}
+
+function MapPin({
+  location,
+  index,
+  count,
+  active,
+  onPress,
+}: {
+  location: string;
+  index: number;
+  count: number;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const positions = [
+    { top: 28, left: 24 },
+    { top: 42, right: 26 },
+    { bottom: 34, left: 36 },
+    { bottom: 30, right: 38 },
+  ];
+
+  const position = positions[index % positions.length];
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.mapPin, position, active && styles.mapPinActive]}
+    >
+      <Ionicons
+        name="location"
+        size={18}
+        color={active ? colors.white : colors.orange}
+      />
+      <Text style={[styles.mapPinCount, active && styles.mapPinCountActive]}>
+        {count}
+      </Text>
+      <Text style={[styles.mapPinLabel, active && styles.mapPinLabelActive]} numberOfLines={1}>
+        {location}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -2763,6 +2936,65 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
+  filterPanel: {
+    backgroundColor: colors.white,
+    borderRadius: 26,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 20,
+  },
+  filterPanelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+    gap: 12,
+  },
+  filterPanelTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  filterPanelSubtitle: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  clearFiltersButton: {
+    backgroundColor: colors.ivory,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  clearFiltersText: {
+    color: colors.blue,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  filterGroupLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 8,
+    marginTop: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  ownerFilterRowCompact: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  sortOptionsCompact: {
+    gap: 8,
+    paddingBottom: 2,
+  },
+  categoriesCompact: {
+    gap: 8,
+    paddingBottom: 2,
+  },
   ownerFilterRow: {
     flexDirection: "row",
     gap: 8,
@@ -2816,6 +3048,135 @@ const styles = StyleSheet.create({
   sortPillTextActive: {
     color: colors.white,
   },
+  mapCard: {
+    height: 210,
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  mapGridLineVertical: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: "50%",
+    width: 1,
+    backgroundColor: "rgba(45, 91, 255, 0.08)",
+  },
+  mapGridLineHorizontal: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: "50%",
+    height: 1,
+    backgroundColor: "rgba(45, 91, 255, 0.08)",
+  },
+  mapRoad: {
+    position: "absolute",
+    height: 18,
+    backgroundColor: colors.ivory,
+    borderRadius: 999,
+  },
+  mapRoadPrimary: {
+    left: -20,
+    right: -20,
+    top: 92,
+    transform: [{ rotate: "-12deg" }],
+  },
+  mapRoadSecondary: {
+    width: 250,
+    left: 40,
+    top: 86,
+    transform: [{ rotate: "62deg" }],
+  },
+  mapLegend: {
+    position: "absolute",
+    left: 14,
+    bottom: 12,
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  mapLegendText: {
+    color: colors.blue,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  mapPin: {
+    position: "absolute",
+    minWidth: 78,
+    maxWidth: 112,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  mapPinActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  mapPinCount: {
+    color: colors.orange,
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: -2,
+  },
+  mapPinCountActive: {
+    color: colors.white,
+  },
+  mapPinLabel: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 1,
+  },
+  mapPinLabelActive: {
+    color: colors.white,
+  },
+  activeLocationBanner: {
+    backgroundColor: colors.white,
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  activeLocationIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activeLocationTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 14,
+  },
+  activeLocationText: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 3,
+    lineHeight: 18,
+  },
   hotspotList: {
     gap: 10,
     paddingBottom: 20,
@@ -2828,6 +3189,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  hotspotCardActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
   hotspotIcon: {
     width: 40,
     height: 40,
@@ -2837,16 +3202,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 10,
   },
+  hotspotIconActive: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
   hotspotTitle: {
     color: colors.text,
     fontWeight: "900",
     fontSize: 14,
+  },
+  hotspotTitleActive: {
+    color: colors.white,
   },
   hotspotMeta: {
     color: colors.muted,
     fontWeight: "700",
     marginTop: 4,
     fontSize: 12,
+  },
+  hotspotMetaActive: {
+    color: "rgba(255,255,255,0.82)",
   },
   categories: {
     gap: 10,
