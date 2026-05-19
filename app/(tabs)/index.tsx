@@ -20,6 +20,7 @@ import {
 
 type Screen = "home" | "add" | "profile";
 type OwnerFilter = "all" | "others" | "mine";
+type SortOption = "recommended" | "nearest" | "tokens" | "rating";
 type RequestStatus = "Pending" | "Accepted" | "Returned";
 
 type Item = {
@@ -37,6 +38,9 @@ type Item = {
   pickupLocation: string;
   availability: string;
   imageColors: readonly [string, string];
+  swaps?: number;
+  condition?: string;
+  isPaused?: boolean;
 };
 
 type BorrowRequest = {
@@ -95,6 +99,14 @@ type TokenEvent = {
   date: string;
 };
 
+type NotificationItem = {
+  id: number;
+  title: string;
+  text: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  date: string;
+};
+
 const currentUserName = "Mock Student";
 
 const categories = ["All", "Audiovisual", "Prototyping", "Dress", "Study"];
@@ -111,6 +123,13 @@ const pickupOptions = [
   "Engineering Building",
   "Student Dorm A",
   "Campus Café",
+];
+
+const sortOptions: { label: string; value: SortOption; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: "Recommended", value: "recommended", icon: "sparkles" },
+  { label: "Nearest", value: "nearest", icon: "location" },
+  { label: "Cheapest", value: "tokens", icon: "diamond" },
+  { label: "Top rated", value: "rating", icon: "star" },
 ];
 
 const mockBorrowers = [
@@ -244,6 +263,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("recommended");
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [borrowSummaryItem, setBorrowSummaryItem] = useState<Item | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
@@ -264,6 +284,15 @@ export default function App() {
     },
   ]);
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: 2001,
+      title: "Welcome to Stud&Swap",
+      text: "Your profile is verified and you received a starter token bonus.",
+      icon: "checkmark-circle",
+      date: "Today",
+    },
+  ]);
 
   const selectedConversation = useMemo(() => {
     if (selectedConversationId === null) {
@@ -288,6 +317,10 @@ export default function App() {
       result = result.filter((item) => item.owner !== currentUserName);
     }
 
+    if (ownerFilter !== "mine") {
+      result = result.filter((item) => !item.isPaused);
+    }
+
     const normalizedQuery = query.trim().toLowerCase();
 
     if (normalizedQuery.length > 0) {
@@ -302,8 +335,39 @@ export default function App() {
       });
     }
 
-    return result;
-  }, [itemList, selectedCategory, ownerFilter, query]);
+    const sortedResult = [...result];
+
+    if (sortOption === "nearest") {
+      sortedResult.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+    }
+
+    if (sortOption === "tokens") {
+      sortedResult.sort((a, b) => a.tokens - b.tokens);
+    }
+
+    if (sortOption === "rating") {
+      sortedResult.sort((a, b) => b.rating - a.rating);
+    }
+
+    return sortedResult;
+  }, [itemList, selectedCategory, ownerFilter, sortOption, query]);
+
+  const pushNotification = (
+    title: string,
+    text: string,
+    icon: keyof typeof Ionicons.glyphMap = "notifications"
+  ) => {
+    setNotifications((currentNotifications) => [
+      {
+        id: Date.now() + Math.random(),
+        title,
+        text,
+        icon,
+        date: "Just now",
+      },
+      ...currentNotifications,
+    ]);
+  };
 
   const addNewItem = (newItem: NewItemInput) => {
     const item: Item = {
@@ -330,6 +394,12 @@ export default function App() {
     setOwnerFilter("mine");
     setQuery("");
     setScreen("home");
+
+    pushNotification(
+      "Listing published",
+      `${item.title} is now visible in your campus marketplace.`,
+      "add-circle"
+    );
 
     Alert.alert(
       "Item published",
@@ -370,6 +440,12 @@ export default function App() {
         },
         ...currentEvents,
       ]);
+
+      pushNotification(
+        "New borrower",
+        `${borrower.name} borrowed ${item.title} until ${dueDate}.`,
+        "people"
+      );
 
       Alert.alert(
         "Tokens earned",
@@ -443,6 +519,12 @@ export default function App() {
     setBorrowSummaryItem(null);
     openConversation(item);
 
+    pushNotification(
+      "Borrow request sent",
+      `${totalTokens} tokens were reserved for ${item.title}.`,
+      "paper-plane"
+    );
+
     Alert.alert(
       "Borrow request sent",
       `Your request for ${item.title} was sent to ${item.owner}. ${totalTokens} tokens are now reserved.`
@@ -453,6 +535,12 @@ export default function App() {
         currentRequests.map((request) =>
           request.id === requestId ? { ...request, status: "Accepted" } : request
         )
+      );
+
+      pushNotification(
+        "Request accepted",
+        `${item.owner} accepted your request for ${item.title}.`,
+        "checkmark-circle"
       );
 
       addOwnerMessage(
@@ -485,6 +573,12 @@ export default function App() {
       ...currentEvents,
     ]);
 
+    pushNotification(
+      "Request cancelled",
+      `${request.tokens} tokens were returned to your wallet.`,
+      "refresh"
+    );
+
     Alert.alert(
       "Request cancelled",
       `${request.tokens} tokens were returned to your wallet.`
@@ -515,6 +609,12 @@ export default function App() {
       },
       ...currentEvents,
     ]);
+
+    pushNotification(
+      "Return completed",
+      `You returned ${request.itemTitle} and earned a +2 token bonus.`,
+      "return-down-back"
+    );
 
     Alert.alert(
       "Item returned",
@@ -547,6 +647,12 @@ export default function App() {
       ...currentEvents,
     ]);
 
+    pushNotification(
+      "Listing returned",
+      `${rental.borrower} returned ${rental.itemTitle}. You earned +1 reliability bonus.`,
+      "ribbon"
+    );
+
     Alert.alert(
       "Listing returned",
       `${rental.borrower} returned ${rental.itemTitle}. You received +1 reliability bonus token.`
@@ -572,6 +678,12 @@ export default function App() {
       ...currentEvents,
     ]);
 
+    pushNotification(
+      "Daily bonus claimed",
+      "You received +5 tokens for staying active in the community.",
+      "sparkles"
+    );
+
     Alert.alert("Bonus claimed", "You received 5 tokens for staying active on campus.");
   };
 
@@ -583,6 +695,37 @@ export default function App() {
 
       return [...currentIds, itemId];
     });
+  };
+
+  const toggleListingPause = (itemId: number) => {
+    const item = itemList.find((listing) => listing.id === itemId);
+
+    if (!item || item.owner !== currentUserName) {
+      return;
+    }
+
+    const nextPausedState = !item.isPaused;
+
+    setItemList((currentItems) =>
+      currentItems.map((listing) =>
+        listing.id === itemId ? { ...listing, isPaused: nextPausedState } : listing
+      )
+    );
+
+    pushNotification(
+      nextPausedState ? "Listing paused" : "Listing activated",
+      nextPausedState
+        ? `${item.title} is now hidden from other students.`
+        : `${item.title} is visible in the marketplace again.`,
+      nextPausedState ? "pause-circle" : "play-circle"
+    );
+
+    Alert.alert(
+      nextPausedState ? "Listing paused" : "Listing activated",
+      nextPausedState
+        ? `${item.title} is now hidden from other students.`
+        : `${item.title} is visible in the marketplace again.`
+    );
   };
 
   const openConversation = (item: Item) => {
@@ -733,6 +876,7 @@ export default function App() {
             onBack={() => setSelectedItem(null)}
             onStartBorrow={startBorrowSummary}
             onOpenConversation={openConversation}
+            onToggleListingPause={toggleListingPause}
             ownerRentals={ownerRentals.filter(
               (rental) => rental.itemId === selectedItem.id
             )}
@@ -747,6 +891,8 @@ export default function App() {
                 onSelectCategory={setSelectedCategory}
                 ownerFilter={ownerFilter}
                 onChangeOwnerFilter={setOwnerFilter}
+                sortOption={sortOption}
+                onChangeSortOption={setSortOption}
                 ownerRentals={ownerRentals}
                 items={filteredItems}
                 onOpenItem={setSelectedItem}
@@ -771,6 +917,7 @@ export default function App() {
                 conversations={conversations}
                 ownerRentals={ownerRentals}
                 tokenEvents={tokenEvents}
+                notifications={notifications}
                 dailyBonusClaimed={dailyBonusClaimed}
                 onOpenFavorite={setSelectedItem}
                 onOpenConversation={(conversationId) =>
@@ -888,6 +1035,8 @@ function HomeScreen({
   onSelectCategory,
   ownerFilter,
   onChangeOwnerFilter,
+  sortOption,
+  onChangeSortOption,
   ownerRentals,
   items,
   onOpenItem,
@@ -898,6 +1047,8 @@ function HomeScreen({
   onSelectCategory: (category: string) => void;
   ownerFilter: OwnerFilter;
   onChangeOwnerFilter: (filter: OwnerFilter) => void;
+  sortOption: SortOption;
+  onChangeSortOption: (option: SortOption) => void;
   ownerRentals: OwnerRental[];
   items: Item[];
   onOpenItem: (item: Item) => void;
@@ -972,6 +1123,45 @@ function HomeScreen({
           onPress={() => onChangeOwnerFilter("mine")}
         />
       </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Sort by</Text>
+        <Text style={styles.sectionLink}>Smart list</Text>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.sortOptions}
+      >
+        {sortOptions.map((option) => (
+          <SortPill
+            key={option.value}
+            option={option}
+            active={sortOption === option.value}
+            onPress={() => onChangeSortOption(option.value)}
+          />
+        ))}
+      </ScrollView>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Campus pickup points</Text>
+        <Text style={styles.sectionLink}>Mock map</Text>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.hotspotList}
+      >
+        {pickupOptions.map((location) => (
+          <CampusHotspotCard
+            key={location}
+            location={location}
+            count={items.filter((item) => item.pickupLocation === location).length}
+          />
+        ))}
+      </ScrollView>
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Categories</Text>
@@ -1058,6 +1248,52 @@ function OwnerFilterPill({
   );
 }
 
+function SortPill({
+  option,
+  active,
+  onPress,
+}: {
+  option: { label: string; value: SortOption; icon: keyof typeof Ionicons.glyphMap };
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.sortPill, active && styles.sortPillActive]}
+    >
+      <Ionicons
+        name={option.icon}
+        size={15}
+        color={active ? colors.white : colors.blue}
+      />
+      <Text style={[styles.sortPillText, active && styles.sortPillTextActive]}>
+        {option.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function CampusHotspotCard({
+  location,
+  count,
+}: {
+  location: string;
+  count: number;
+}) {
+  return (
+    <View style={styles.hotspotCard}>
+      <View style={styles.hotspotIcon}>
+        <Ionicons name="location" size={18} color={colors.blue} />
+      </View>
+      <Text style={styles.hotspotTitle}>{location}</Text>
+      <Text style={styles.hotspotMeta}>
+        {count === 1 ? "1 item nearby" : `${count} items nearby`}
+      </Text>
+    </View>
+  );
+}
+
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.statBox}>
@@ -1077,6 +1313,7 @@ function ItemCard({
   onPress: () => void;
 }) {
   const isMine = item.owner === currentUserName;
+  const isPaused = item.isPaused === true;
 
   return (
     <Pressable onPress={onPress} style={styles.itemCard}>
@@ -1091,7 +1328,7 @@ function ItemCard({
         </View>
 
         <View style={styles.imageCardBadge}>
-          <Text style={styles.imageCardBadgeText}>{item.category}</Text>
+          <Text style={styles.imageCardBadgeText}>{isPaused ? "Paused" : item.category}</Text>
         </View>
       </LinearGradient>
 
@@ -1118,9 +1355,11 @@ function ItemCard({
         </View>
 
         <Text style={styles.itemCategory}>
-          {activeOwnerRental
-            ? `Borrowed by ${activeOwnerRental.borrower} until ${activeOwnerRental.dueDate}`
-            : item.availability}
+          {isPaused
+            ? "Paused - hidden from other students"
+            : activeOwnerRental
+              ? `Borrowed by ${activeOwnerRental.borrower} until ${activeOwnerRental.dueDate}`
+              : item.availability}
         </Text>
 
         <View style={styles.itemMeta}>
@@ -1149,6 +1388,7 @@ function ItemDetails({
   onBack,
   onStartBorrow,
   onOpenConversation,
+  onToggleListingPause,
   ownerRentals,
   isFavorite,
   onToggleFavorite,
@@ -1157,6 +1397,7 @@ function ItemDetails({
   onBack: () => void;
   onStartBorrow: (item: Item) => void;
   onOpenConversation: (item: Item) => void;
+  onToggleListingPause: (itemId: number) => void;
   ownerRentals: OwnerRental[];
   isFavorite: boolean;
   onToggleFavorite: () => void;
@@ -1194,7 +1435,9 @@ function ItemDetails({
         </View>
 
         <View style={styles.detailsHeroBadge}>
-          <Text style={styles.detailsHeroBadgeText}>{item.availability}</Text>
+          <Text style={styles.detailsHeroBadgeText}>
+            {item.isPaused ? "Paused listing" : item.availability}
+          </Text>
         </View>
       </LinearGradient>
 
@@ -1226,6 +1469,19 @@ function ItemDetails({
               {item.pickupLocation} · {item.distance} from you
             </Text>
           </View>
+        </View>
+
+        <View style={styles.itemInsightGrid}>
+          <MiniInsight icon="swap-horizontal" value={`${item.swaps ?? 12}`} label="Swaps" />
+          <MiniInsight icon="shield-checkmark" value={item.condition ?? "Good"} label="Condition" />
+          <MiniInsight icon="heart" value={isFavorite ? "Saved" : "Save"} label="Favorite" />
+        </View>
+
+        <Text style={[styles.sectionTitle, styles.reviewsTitle]}>Community notes</Text>
+        <View style={styles.reviewsList}>
+          {getReviewsForItem(item).map((review) => (
+            <ReviewCard key={review.id} review={review} />
+          ))}
         </View>
 
         <View style={styles.trustGrid}>
@@ -1263,6 +1519,22 @@ function ItemDetails({
               </View>
             </View>
 
+            <Pressable
+              style={[
+                styles.secondaryButton,
+                item.isPaused && styles.activateListingButton,
+              ]}
+              onPress={() => onToggleListingPause(item.id)}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {item.isPaused ? "Activate listing" : "Pause listing"}
+              </Text>
+            </Pressable>
+
+            <Text style={styles.ownerInfoText}>
+              Paused listings stay in My listings, but are hidden from other students.
+            </Text>
+
             <Text style={[styles.sectionTitle, styles.listingActivityTitle]}>
               Listing activity
             </Text>
@@ -1296,12 +1568,78 @@ function ItemDetails({
             >
               <Text style={styles.secondaryButtonText}>Message owner</Text>
             </Pressable>
+
+            <Pressable
+              style={styles.ghostButton}
+              onPress={() =>
+                Alert.alert(
+                  "Report submitted",
+                  "Thanks. In the real app, this would notify campus moderators."
+                )
+              }
+            >
+              <Text style={styles.ghostButtonText}>Report listing issue</Text>
+            </Pressable>
           </>
         )}
       </View>
 
       <View style={styles.spacer} />
     </ScrollView>
+  );
+}
+
+function MiniInsight({
+  icon,
+  value,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.miniInsightCard}>
+      <Ionicons name={icon} size={18} color={colors.blue} />
+      <Text style={styles.miniInsightValue}>{value}</Text>
+      <Text style={styles.miniInsightLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function getReviewsForItem(item: Item) {
+  return [
+    {
+      id: 1,
+      author: "Verified student",
+      text: `${item.title} was easy to pick up and matched the description.`,
+      rating: item.rating,
+    },
+    {
+      id: 2,
+      author: "Campus community",
+      text: `Good communication near ${item.pickupLocation}.`,
+      rating: Math.max(4.5, item.rating - 0.1),
+    },
+  ];
+}
+
+function ReviewCard({
+  review,
+}: {
+  review: { id: number; author: string; text: string; rating: number };
+}) {
+  return (
+    <View style={styles.reviewCard}>
+      <View style={styles.reviewTop}>
+        <Text style={styles.reviewAuthor}>{review.author}</Text>
+        <View style={styles.metaRow}>
+          <Ionicons name="star" size={13} color={colors.orange} />
+          <Text style={styles.metaText}>{review.rating.toFixed(1)}</Text>
+        </View>
+      </View>
+      <Text style={styles.reviewText}>{review.text}</Text>
+    </View>
   );
 }
 
@@ -1697,6 +2035,7 @@ function ProfileScreen({
   conversations,
   ownerRentals,
   tokenEvents,
+  notifications,
   dailyBonusClaimed,
   onOpenFavorite,
   onOpenConversation,
@@ -1712,6 +2051,7 @@ function ProfileScreen({
   conversations: Conversation[];
   ownerRentals: OwnerRental[];
   tokenEvents: TokenEvent[];
+  notifications: NotificationItem[];
   dailyBonusClaimed: boolean;
   onOpenFavorite: (item: Item) => void;
   onOpenConversation: (conversationId: number) => void;
@@ -1771,6 +2111,22 @@ function ProfileScreen({
           color={dailyBonusClaimed ? colors.muted : colors.orange}
         />
       </Pressable>
+
+      <Text style={styles.sectionTitle}>Campus impact</Text>
+
+      <View style={styles.impactGrid}>
+        <ImpactCard icon="swap-horizontal" value={`${borrowRequests.length}`} label="Borrowed" />
+        <ImpactCard icon="storefront" value={`${myListingsCount}`} label="Listed" />
+        <ImpactCard icon="leaf" value={`${ownerRentals.length + borrowRequests.length}`} label="Swaps" />
+      </View>
+
+      <Text style={[styles.sectionTitle, styles.requestsTitle]}>Notifications</Text>
+
+      <View style={styles.notificationsList}>
+        {notifications.slice(0, 4).map((notification) => (
+          <NotificationCard key={notification.id} notification={notification} />
+        ))}
+      </View>
 
       <Text style={styles.sectionTitle}>Trust & safety</Text>
 
@@ -1972,6 +2328,44 @@ function OwnerRentalCard({
           <Text style={styles.requestActionText}>Mark borrower returned item</Text>
         </Pressable>
       )}
+    </View>
+  );
+}
+
+function ImpactCard({
+  icon,
+  value,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.impactCard}>
+      <Ionicons name={icon} size={20} color={colors.blue} />
+      <Text style={styles.impactValue}>{value}</Text>
+      <Text style={styles.impactLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function NotificationCard({
+  notification,
+}: {
+  notification: NotificationItem;
+}) {
+  return (
+    <View style={styles.notificationCard}>
+      <View style={styles.notificationIcon}>
+        <Ionicons name={notification.icon} size={18} color={colors.blue} />
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.notificationTitle}>{notification.title}</Text>
+        <Text style={styles.notificationText}>{notification.text}</Text>
+        <Text style={styles.notificationDate}>{notification.date}</Text>
+      </View>
     </View>
   );
 }
@@ -2395,6 +2789,65 @@ const styles = StyleSheet.create({
   ownerFilterTextActive: {
     color: colors.white,
   },
+  sortOptions: {
+    gap: 10,
+    paddingBottom: 20,
+  },
+  sortPill: {
+    backgroundColor: colors.white,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  sortPillActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  sortPillText: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  sortPillTextActive: {
+    color: colors.white,
+  },
+  hotspotList: {
+    gap: 10,
+    paddingBottom: 20,
+  },
+  hotspotCard: {
+    width: 150,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  hotspotIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 15,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  hotspotTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 14,
+  },
+  hotspotMeta: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginTop: 4,
+    fontSize: 12,
+  },
   categories: {
     gap: 10,
     paddingBottom: 22,
@@ -2663,6 +3116,63 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 3,
   },
+  itemInsightGrid: {
+    marginTop: 18,
+    flexDirection: "row",
+    gap: 10,
+  },
+  miniInsightCard: {
+    flex: 1,
+    backgroundColor: colors.ivory,
+    borderRadius: 18,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  miniInsightValue: {
+    color: colors.text,
+    fontWeight: "900",
+    marginTop: 6,
+    fontSize: 14,
+  },
+  miniInsightLabel: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginTop: 2,
+    fontSize: 11,
+  },
+  reviewsTitle: {
+    marginTop: 22,
+    marginBottom: 12,
+    fontSize: 20,
+  },
+  reviewsList: {
+    gap: 10,
+  },
+  reviewCard: {
+    backgroundColor: colors.ivory,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reviewTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  reviewAuthor: {
+    color: colors.text,
+    fontWeight: "900",
+  },
+  reviewText: {
+    color: colors.muted,
+    fontWeight: "600",
+    lineHeight: 19,
+    marginTop: 6,
+  },
   trustGrid: {
     marginTop: 20,
     gap: 10,
@@ -2732,6 +3242,20 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: colors.text,
     fontWeight: "900",
+  },
+  ghostButton: {
+    marginTop: 10,
+    borderRadius: 18,
+    padding: 14,
+    alignItems: "center",
+  },
+  ghostButtonText: {
+    color: colors.muted,
+    fontWeight: "900",
+  },
+  activateListingButton: {
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.blue,
   },
   summaryCard: {
     backgroundColor: colors.white,
@@ -3108,6 +3632,70 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 3,
     lineHeight: 18,
+  },
+  impactGrid: {
+    marginTop: 12,
+    marginBottom: 24,
+    flexDirection: "row",
+    gap: 10,
+  },
+  impactCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  impactValue: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 6,
+  },
+  impactLabel: {
+    color: colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  notificationsList: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  notificationCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    gap: 12,
+  },
+  notificationIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationTitle: {
+    color: colors.text,
+    fontWeight: "900",
+  },
+  notificationText: {
+    color: colors.muted,
+    fontWeight: "600",
+    lineHeight: 18,
+    marginTop: 3,
+  },
+  notificationDate: {
+    color: colors.blue,
+    fontWeight: "900",
+    fontSize: 11,
+    marginTop: 5,
   },
   profileList: {
     marginTop: 12,
