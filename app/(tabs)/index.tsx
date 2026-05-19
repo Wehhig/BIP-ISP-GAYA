@@ -24,6 +24,7 @@ type OwnerFilter = "all" | "others" | "mine";
 type PickupFilter = string | null;
 type SortOption = "recommended" | "nearest" | "tokens" | "rating";
 type RequestStatus = "Pending" | "Accepted" | "Returned";
+type AvailabilityFilter = "all" | "today";
 
 type Item = {
   id: number;
@@ -76,6 +77,9 @@ type NewItemInput = {
   category: string;
   tokens: number;
   description: string;
+  pickupLocation: string;
+  availability: string;
+  deposit: boolean;
 };
 
 type ChatMessage = {
@@ -109,6 +113,15 @@ type NotificationItem = {
   date: string;
 };
 
+type Review = {
+  id: number;
+  itemId: number;
+  author: string;
+  text: string;
+  rating: number;
+  date: string;
+};
+
 type PersistedAppState = {
   itemList: Item[];
   tokenBalance: number;
@@ -119,6 +132,10 @@ type PersistedAppState = {
   tokenEvents: TokenEvent[];
   dailyBonusClaimed: boolean;
   notifications: NotificationItem[];
+  hasCompletedOnboarding: boolean;
+  isVerifiedStudent: boolean;
+  verifiedEmail: string;
+  reviews: Review[];
 };
 
 const STORAGE_KEY = "@studswap_demo_state_v1";
@@ -139,6 +156,15 @@ const pickupOptions = [
   "Student Dorm A",
   "Campus Café",
 ];
+
+const availabilityOptions = [
+  "Available today",
+  "Available tomorrow",
+  "Available this week",
+  "Weekend only",
+];
+
+const maxTokenOptions = [5, 10, 15];
 
 const sortOptions: { label: string; value: SortOption; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: "Recommended", value: "recommended", icon: "sparkles" },
@@ -313,6 +339,15 @@ export default function App() {
   const [tokenEvents, setTokenEvents] = useState<TokenEvent[]>(initialTokenEvents);
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [isVerifiedStudent, setIsVerifiedStudent] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [ratingTarget, setRatingTarget] = useState<BorrowRequest | null>(null);
+  const [maxTokensFilter, setMaxTokensFilter] = useState<number | null>(null);
+  const [depositOnly, setDepositOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [availableTodayOnly, setAvailableTodayOnly] = useState(false);
   const [isStorageReady, setIsStorageReady] = useState(false);
 
   useEffect(() => {
@@ -367,6 +402,22 @@ export default function App() {
         if (Array.isArray(savedState.notifications)) {
           setNotifications(savedState.notifications);
         }
+
+        if (typeof savedState.hasCompletedOnboarding === "boolean") {
+          setHasCompletedOnboarding(savedState.hasCompletedOnboarding);
+        }
+
+        if (typeof savedState.isVerifiedStudent === "boolean") {
+          setIsVerifiedStudent(savedState.isVerifiedStudent);
+        }
+
+        if (typeof savedState.verifiedEmail === "string") {
+          setVerifiedEmail(savedState.verifiedEmail);
+        }
+
+        if (Array.isArray(savedState.reviews)) {
+          setReviews(savedState.reviews);
+        }
       } catch (error) {
         console.warn("Failed to load Stud&Swap demo state", error);
       } finally {
@@ -398,6 +449,10 @@ export default function App() {
       tokenEvents,
       dailyBonusClaimed,
       notifications,
+      hasCompletedOnboarding,
+      isVerifiedStudent,
+      verifiedEmail,
+      reviews,
     };
 
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateToPersist)).catch(
@@ -416,6 +471,10 @@ export default function App() {
     tokenEvents,
     dailyBonusClaimed,
     notifications,
+    hasCompletedOnboarding,
+    isVerifiedStudent,
+    verifiedEmail,
+    reviews,
   ]);
 
   const resetDemoData = async () => {
@@ -428,6 +487,15 @@ export default function App() {
     setTokenEvents(initialTokenEvents);
     setDailyBonusClaimed(false);
     setNotifications(initialNotifications);
+    setHasCompletedOnboarding(false);
+    setIsVerifiedStudent(false);
+    setVerifiedEmail("");
+    setReviews([]);
+    setRatingTarget(null);
+    setMaxTokensFilter(null);
+    setDepositOnly(false);
+    setVerifiedOnly(false);
+    setAvailableTodayOnly(false);
     setSelectedCategory("All");
     setOwnerFilter("all");
     setSortOption("recommended");
@@ -478,6 +546,22 @@ export default function App() {
       result = result.filter((item) => item.pickupLocation === selectedPickupFilter);
     }
 
+    if (maxTokensFilter !== null) {
+      result = result.filter((item) => item.tokens <= maxTokensFilter);
+    }
+
+    if (depositOnly) {
+      result = result.filter((item) => item.deposit);
+    }
+
+    if (verifiedOnly) {
+      result = result.filter((item) => item.verified);
+    }
+
+    if (availableTodayOnly) {
+      result = result.filter((item) => item.availability.toLowerCase().includes("today"));
+    }
+
     const normalizedQuery = query.trim().toLowerCase();
 
     if (normalizedQuery.length > 0) {
@@ -507,7 +591,18 @@ export default function App() {
     }
 
     return sortedResult;
-  }, [itemList, selectedCategory, ownerFilter, selectedPickupFilter, sortOption, query]);
+  }, [
+    itemList,
+    selectedCategory,
+    ownerFilter,
+    selectedPickupFilter,
+    sortOption,
+    query,
+    maxTokensFilter,
+    depositOnly,
+    verifiedOnly,
+    availableTodayOnly,
+  ]);
 
   const pushNotification = (
     title: string,
@@ -536,13 +631,13 @@ export default function App() {
       rating: 5.0,
       owner: currentUserName,
       verified: true,
-      deposit: newItem.category !== "Dress",
+      deposit: newItem.deposit,
       description:
         newItem.description ||
         "New student listing added in demo mode. In the final app, this would be saved in a database.",
       icon: getIconForCategory(newItem.category),
-      pickupLocation: getRandomItem(pickupOptions),
-      availability: "Available today",
+      pickupLocation: newItem.pickupLocation,
+      availability: newItem.availability,
       imageColors: getColorsForCategory(newItem.category),
     };
 
@@ -773,9 +868,63 @@ export default function App() {
       "return-down-back"
     );
 
-    Alert.alert(
-      "Item returned",
-      "Great! You earned 2 bonus tokens for returning the item on time."
+    setRatingTarget(request);
+  };
+
+  const submitReview = (request: BorrowRequest, rating: number, text: string) => {
+    const cleanText = text.trim();
+    const review: Review = {
+      id: Date.now() + Math.random(),
+      itemId: request.itemId,
+      author: currentUserName,
+      text: cleanText || "Smooth borrow and easy campus pickup.",
+      rating,
+      date: "Just now",
+    };
+
+    setReviews((currentReviews) => [review, ...currentReviews]);
+    setItemList((currentItems) =>
+      currentItems.map((item) => {
+        if (item.id !== request.itemId) {
+          return item;
+        }
+
+        const nextRating = Number(((item.rating + rating) / 2).toFixed(1));
+        return {
+          ...item,
+          rating: nextRating,
+          swaps: (item.swaps ?? 12) + 1,
+        };
+      })
+    );
+    setTokenBalance((currentBalance) => currentBalance + 1);
+    setTokenEvents((currentEvents) => [
+      {
+        id: Date.now() + Math.random(),
+        title: `Review bonus for ${request.itemTitle}`,
+        amount: 1,
+        type: "bonus",
+        date: "Just now",
+      },
+      ...currentEvents,
+    ]);
+    pushNotification(
+      "Review added",
+      `Your ${rating}-star review for ${request.itemTitle} was saved. +1 token bonus added.`,
+      "star"
+    );
+    setRatingTarget(null);
+    Alert.alert("Review saved", "Thanks! You earned +1 token for rating this swap.");
+  };
+
+  const completeOnboarding = (email: string) => {
+    setVerifiedEmail(email);
+    setIsVerifiedStudent(true);
+    setHasCompletedOnboarding(true);
+    pushNotification(
+      "University email verified",
+      `${email} is now connected to this demo account.`,
+      "school"
     );
   };
 
@@ -1023,6 +1172,15 @@ export default function App() {
     );
   }
 
+  if (!hasCompletedOnboarding) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style="dark" />
+        <OnboardingScreen onComplete={completeOnboarding} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -1030,7 +1188,13 @@ export default function App() {
       <Header />
 
       <View style={styles.contentShell}>
-        {selectedConversation ? (
+        {ratingTarget ? (
+          <RatingScreen
+            request={ratingTarget}
+            onSkip={() => setRatingTarget(null)}
+            onSubmitReview={submitReview}
+          />
+        ) : selectedConversation ? (
           <ChatScreen
             conversation={selectedConversation}
             onBack={() => setSelectedConversationId(null)}
@@ -1053,6 +1217,7 @@ export default function App() {
             ownerRentals={ownerRentals.filter(
               (rental) => rental.itemId === selectedItem.id
             )}
+            reviews={reviews.filter((review) => review.itemId === selectedItem.id)}
             isFavorite={favoriteIds.includes(selectedItem.id)}
             onToggleFavorite={() => toggleFavorite(selectedItem.id)}
           />
@@ -1068,6 +1233,14 @@ export default function App() {
                 onChangeSortOption={setSortOption}
                 selectedPickupFilter={selectedPickupFilter}
                 onChangePickupFilter={setSelectedPickupFilter}
+                maxTokensFilter={maxTokensFilter}
+                onChangeMaxTokensFilter={setMaxTokensFilter}
+                depositOnly={depositOnly}
+                onToggleDepositOnly={() => setDepositOnly((value) => !value)}
+                verifiedOnly={verifiedOnly}
+                onToggleVerifiedOnly={() => setVerifiedOnly((value) => !value)}
+                availableTodayOnly={availableTodayOnly}
+                onToggleAvailableTodayOnly={() => setAvailableTodayOnly((value) => !value)}
                 ownerRentals={ownerRentals}
                 allItems={itemList}
                 items={filteredItems}
@@ -1095,6 +1268,8 @@ export default function App() {
                 tokenEvents={tokenEvents}
                 notifications={notifications}
                 dailyBonusClaimed={dailyBonusClaimed}
+                isVerifiedStudent={isVerifiedStudent}
+                verifiedEmail={verifiedEmail}
                 onOpenFavorite={setSelectedItem}
                 onOpenConversation={(conversationId) =>
                   setSelectedConversationId(conversationId)
@@ -1110,7 +1285,7 @@ export default function App() {
         )}
       </View>
 
-      {!selectedItem && !selectedConversation && !borrowSummaryItem && (
+      {!selectedItem && !selectedConversation && !borrowSummaryItem && !ratingTarget && (
         <BottomNavigation activeScreen={screen} onChangeScreen={setScreen} />
       )}
     </SafeAreaView>
@@ -1162,6 +1337,118 @@ function getColorsForCategory(category: string): readonly [string, string] {
     default:
       return ["#2D5BFF", "#FF7048"];
   }
+}
+
+function OnboardingScreen({
+  onComplete,
+}: {
+  onComplete: (email: string) => void;
+}) {
+  const [email, setEmail] = useState("student@university.pt");
+  const [step, setStep] = useState(0);
+
+  const slides = [
+    {
+      icon: "swap-horizontal" as keyof typeof Ionicons.glyphMap,
+      title: "Borrow gear from students nearby",
+      text: "Find cameras, prototyping kits, interview outfits and study tools around your campus.",
+    },
+    {
+      icon: "diamond" as keyof typeof Ionicons.glyphMap,
+      title: "Earn and spend tokens",
+      text: "Lend unused items to earn tokens, then use them to borrow what you need.",
+    },
+    {
+      icon: "shield-checkmark" as keyof typeof Ionicons.glyphMap,
+      title: "Built around trust",
+      text: "Verified university emails, peer ratings and deposit protection make sharing safer.",
+    },
+  ];
+
+  const currentSlide = slides[step];
+
+  const handleNext = () => {
+    if (step < slides.length - 1) {
+      setStep((currentStep) => currentStep + 1);
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      Alert.alert("Invalid email", "Please enter a valid university email.");
+      return;
+    }
+
+    onComplete(cleanEmail);
+  };
+
+  return (
+    <View style={styles.onboardingScreen}>
+      <LinearGradient
+        colors={[colors.blue, colors.orange]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.onboardingHero}
+      >
+        <View style={styles.onboardingLogoMark}>
+          <Ionicons name="sync" size={30} color={colors.white} />
+        </View>
+        <Text style={styles.onboardingBrand}>
+          Stud<Text style={styles.onboardingAmp}>&</Text>Swap
+        </Text>
+        <Text style={styles.onboardingTagline}>Campus sharing marketplace</Text>
+      </LinearGradient>
+
+      <View style={styles.onboardingContent}>
+        <View style={styles.onboardingIconBox}>
+          <Ionicons name={currentSlide.icon} size={34} color={colors.blue} />
+        </View>
+        <Text style={styles.onboardingTitle}>{currentSlide.title}</Text>
+        <Text style={styles.onboardingText}>{currentSlide.text}</Text>
+
+        <View style={styles.onboardingDots}>
+          {slides.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.onboardingDot,
+                step === index && styles.onboardingDotActive,
+              ]}
+            />
+          ))}
+        </View>
+
+        {step === slides.length - 1 && (
+          <View style={styles.verificationCard}>
+            <View style={styles.verificationHeader}>
+              <Ionicons name="school" size={20} color={colors.blue} />
+              <Text style={styles.verificationTitle}>University verification</Text>
+            </View>
+            <Text style={styles.verificationText}>
+              This is a mock verification for the demo. Your email will be stored locally with AsyncStorage.
+            </Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="student@university.pt"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+            />
+          </View>
+        )}
+
+        <Pressable style={styles.primaryButton} onPress={handleNext}>
+          <Text style={styles.primaryButtonText}>
+            {step === slides.length - 1 ? "Verify and enter app" : "Continue"}
+          </Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.white} />
+        </Pressable>
+      </View>
+    </View>
+  );
 }
 
 function Header() {
@@ -1216,6 +1503,14 @@ function HomeScreen({
   onChangeSortOption,
   selectedPickupFilter,
   onChangePickupFilter,
+  maxTokensFilter,
+  onChangeMaxTokensFilter,
+  depositOnly,
+  onToggleDepositOnly,
+  verifiedOnly,
+  onToggleVerifiedOnly,
+  availableTodayOnly,
+  onToggleAvailableTodayOnly,
   ownerRentals,
   allItems,
   items,
@@ -1231,6 +1526,14 @@ function HomeScreen({
   onChangeSortOption: (option: SortOption) => void;
   selectedPickupFilter: PickupFilter;
   onChangePickupFilter: (location: PickupFilter) => void;
+  maxTokensFilter: number | null;
+  onChangeMaxTokensFilter: (value: number | null) => void;
+  depositOnly: boolean;
+  onToggleDepositOnly: () => void;
+  verifiedOnly: boolean;
+  onToggleVerifiedOnly: () => void;
+  availableTodayOnly: boolean;
+  onToggleAvailableTodayOnly: () => void;
   ownerRentals: OwnerRental[];
   allItems: Item[];
   items: Item[];
@@ -1250,6 +1553,10 @@ function HomeScreen({
     (ownerFilter !== "all" ? 1 : 0) +
     (sortOption !== "recommended" ? 1 : 0) +
     (selectedPickupFilter ? 1 : 0) +
+    (maxTokensFilter !== null ? 1 : 0) +
+    (depositOnly ? 1 : 0) +
+    (verifiedOnly ? 1 : 0) +
+    (availableTodayOnly ? 1 : 0) +
     (query.trim().length > 0 ? 1 : 0);
 
   const clearFilters = () => {
@@ -1257,6 +1564,10 @@ function HomeScreen({
     onChangeOwnerFilter("all");
     onChangeSortOption("recommended");
     onChangePickupFilter(null);
+    onChangeMaxTokensFilter(null);
+    if (depositOnly) onToggleDepositOnly();
+    if (verifiedOnly) onToggleVerifiedOnly();
+    if (availableTodayOnly) onToggleAvailableTodayOnly();
     onChangeQuery("");
   };
   return (
@@ -1382,6 +1693,49 @@ function HomeScreen({
                 {category}
               </Text>
             </Pressable>
+          ))}
+        </ScrollView>
+
+        <Text style={styles.filterGroupLabel}>Smart filters</Text>
+        <View style={styles.smartFilterGrid}>
+          <SmartFilterChip
+            icon="shield-checkmark"
+            label="Deposit protected"
+            active={depositOnly}
+            onPress={onToggleDepositOnly}
+          />
+          <SmartFilterChip
+            icon="school"
+            label="Verified owners"
+            active={verifiedOnly}
+            onPress={onToggleVerifiedOnly}
+          />
+          <SmartFilterChip
+            icon="today"
+            label="Available today"
+            active={availableTodayOnly}
+            onPress={onToggleAvailableTodayOnly}
+          />
+        </View>
+
+        <Text style={styles.filterGroupLabel}>Max token cost</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tokenFilterList}
+        >
+          <TokenFilterPill
+            label="Any price"
+            active={maxTokensFilter === null}
+            onPress={() => onChangeMaxTokensFilter(null)}
+          />
+          {maxTokenOptions.map((maxTokens) => (
+            <TokenFilterPill
+              key={maxTokens}
+              label={`≤ ${maxTokens} tokens`}
+              active={maxTokensFilter === maxTokens}
+              onPress={() => onChangeMaxTokensFilter(maxTokens)}
+            />
           ))}
         </ScrollView>
       </View>
@@ -1518,6 +1872,51 @@ function SortPill({
       />
       <Text style={[styles.sortPillText, active && styles.sortPillTextActive]}>
         {option.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SmartFilterChip({
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.smartFilterChip, active && styles.smartFilterChipActive]}
+    >
+      <Ionicons name={icon} size={16} color={active ? colors.white : colors.blue} />
+      <Text style={[styles.smartFilterChipText, active && styles.smartFilterChipTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function TokenFilterPill({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.tokenFilterPill, active && styles.tokenFilterPillActive]}
+    >
+      <Text style={[styles.tokenFilterText, active && styles.tokenFilterTextActive]}>
+        {label}
       </Text>
     </Pressable>
   );
@@ -1731,6 +2130,7 @@ function ItemDetails({
   onOpenConversation,
   onToggleListingPause,
   ownerRentals,
+  reviews,
   isFavorite,
   onToggleFavorite,
 }: {
@@ -1740,6 +2140,7 @@ function ItemDetails({
   onOpenConversation: (item: Item) => void;
   onToggleListingPause: (itemId: number) => void;
   ownerRentals: OwnerRental[];
+  reviews: Review[];
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
@@ -1820,7 +2221,7 @@ function ItemDetails({
 
         <Text style={[styles.sectionTitle, styles.reviewsTitle]}>Community notes</Text>
         <View style={styles.reviewsList}>
-          {getReviewsForItem(item).map((review) => (
+          {getReviewsForItem(item, reviews).map((review) => (
             <ReviewCard key={review.id} review={review} />
           ))}
         </View>
@@ -1948,8 +2349,16 @@ function MiniInsight({
   );
 }
 
-function getReviewsForItem(item: Item) {
+function getReviewsForItem(item: Item, reviews: Review[]) {
+  const savedReviews = reviews.map((review) => ({
+    id: review.id,
+    author: review.author,
+    text: review.text,
+    rating: review.rating,
+  }));
+
   return [
+    ...savedReviews,
     {
       id: 1,
       author: "Verified student",
@@ -2114,6 +2523,78 @@ function BorrowSummaryScreen({
   );
 }
 
+function RatingScreen({
+  request,
+  onSkip,
+  onSubmitReview,
+}: {
+  request: BorrowRequest;
+  onSkip: () => void;
+  onSubmitReview: (request: BorrowRequest, rating: number, text: string) => void;
+}) {
+  const [rating, setRating] = useState(5);
+  const [text, setText] = useState("Smooth pickup and good communication.");
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.detailsTop}>
+        <Pressable onPress={onSkip} style={styles.backButton}>
+          <Ionicons name="close" size={22} color={colors.text} />
+        </Pressable>
+
+        <Text style={styles.detailsTopText}>Rate your swap</Text>
+      </View>
+
+      <View style={styles.ratingCard}>
+        <View style={styles.ratingIconBox}>
+          <Ionicons name="star" size={38} color={colors.orange} />
+        </View>
+
+        <Text style={styles.ratingTitle}>{request.itemTitle}</Text>
+        <Text style={styles.ratingSubtitle}>
+          Your item is marked as returned. Add a quick rating to help the campus community.
+        </Text>
+
+        <View style={styles.ratingStars}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Pressable key={star} onPress={() => setRating(star)}>
+              <Ionicons
+                name={star <= rating ? "star" : "star-outline"}
+                size={34}
+                color={colors.orange}
+              />
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.inputLabel}>Short review</Text>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="How was the pickup and item condition?"
+          placeholderTextColor={colors.muted}
+          multiline
+          style={[styles.input, styles.textArea]}
+        />
+
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => onSubmitReview(request, rating, text)}
+        >
+          <Text style={styles.primaryButtonText}>Submit review and earn +1</Text>
+          <Ionicons name="diamond" size={18} color={colors.white} />
+        </Pressable>
+
+        <Pressable style={styles.secondaryButton} onPress={onSkip}>
+          <Text style={styles.secondaryButtonText}>Skip for now</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.spacer} />
+    </ScrollView>
+  );
+}
+
 function TrustBadge({
   icon,
   title,
@@ -2263,6 +2744,12 @@ function AddItemScreen({
   const [category, setCategory] = useState("Audiovisual");
   const [tokens, setTokens] = useState("");
   const [description, setDescription] = useState("");
+  const [pickupLocation, setPickupLocation] = useState(pickupOptions[0]);
+  const [availability, setAvailability] = useState(availabilityOptions[0]);
+  const [deposit, setDeposit] = useState(true);
+
+  const parsedPreviewTokens = Number(tokens);
+  const previewTokens = Number.isFinite(parsedPreviewTokens) && parsedPreviewTokens > 0 ? Math.round(parsedPreviewTokens) : 0;
 
   const handlePublish = () => {
     const cleanTitle = title.trim();
@@ -2284,21 +2771,49 @@ function AddItemScreen({
       category,
       tokens: Math.round(parsedTokens),
       description: cleanDescription,
+      pickupLocation,
+      availability,
+      deposit,
     });
 
     setTitle("");
     setCategory("Audiovisual");
     setTokens("");
     setDescription("");
+    setPickupLocation(pickupOptions[0]);
+    setAvailability(availabilityOptions[0]);
+    setDeposit(true);
   };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={styles.pageTitle}>List your item</Text>
       <Text style={styles.pageSubtitle}>
-        Add gear you do not use every day and earn tokens from your campus
-        community.
+        Create a realistic listing with pickup point, availability and deposit settings.
       </Text>
+
+      <View style={styles.addPreviewSection}>
+        <Text style={styles.filterGroupLabel}>Live preview</Text>
+        <View style={styles.previewListingCard}>
+          <LinearGradient
+            colors={getColorsForCategory(category)}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.previewImage}
+          >
+            <Ionicons name={getIconForCategory(category)} size={34} color={colors.white} />
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.previewTitle}>{title.trim() || "Your item name"}</Text>
+            <Text style={styles.previewMeta}>{category} · {pickupLocation}</Text>
+            <Text style={styles.previewMeta}>{availability} · {deposit ? "Deposit protected" : "No deposit"}</Text>
+          </View>
+          <View style={styles.tokensBadge}>
+            <Ionicons name="diamond" size={13} color={colors.orange} />
+            <Text style={styles.tokensText}>{previewTokens || "?"}</Text>
+          </View>
+        </View>
+      </View>
 
       <View style={styles.formCard}>
         <Text style={styles.inputLabel}>Item name</Text>
@@ -2336,6 +2851,66 @@ function AddItemScreen({
             </Pressable>
           ))}
         </ScrollView>
+
+        <Text style={styles.inputLabel}>Pickup location</Text>
+        <View style={styles.pickupList}>
+          {pickupOptions.map((location) => (
+            <Pressable
+              key={location}
+              onPress={() => setPickupLocation(location)}
+              style={[
+                styles.pickupOption,
+                pickupLocation === location && styles.pickupOptionActive,
+              ]}
+            >
+              <Ionicons
+                name={pickupLocation === location ? "radio-button-on" : "radio-button-off"}
+                size={18}
+                color={pickupLocation === location ? colors.blue : colors.muted}
+              />
+              <Text style={styles.pickupOptionText}>{location}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.inputLabel}>Availability</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.formCategoryList}>
+          {availabilityOptions.map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => setAvailability(option)}
+              style={[
+                styles.formCategoryPill,
+                availability === option && styles.formCategoryPillActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.formCategoryText,
+                  availability === option && styles.formCategoryTextActive,
+                ]}
+              >
+                {option}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <Pressable
+          style={[styles.depositToggle, deposit && styles.depositToggleActive]}
+          onPress={() => setDeposit((value) => !value)}
+        >
+          <View style={styles.depositToggleIcon}>
+            <Ionicons name={deposit ? "shield-checkmark" : "shield-outline"} size={20} color={deposit ? colors.blue : colors.muted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.depositToggleTitle}>Deposit protection</Text>
+            <Text style={styles.depositToggleText}>
+              {deposit ? "Bank-hold guarantee shown on listing." : "No deposit required for this item."}
+            </Text>
+          </View>
+          <Ionicons name={deposit ? "toggle" : "toggle-outline"} size={28} color={deposit ? colors.blue : colors.muted} />
+        </Pressable>
 
         <Text style={styles.inputLabel}>Tokens per day</Text>
         <TextInput
@@ -2387,6 +2962,8 @@ function ProfileScreen({
   tokenEvents,
   notifications,
   dailyBonusClaimed,
+  isVerifiedStudent,
+  verifiedEmail,
   onOpenFavorite,
   onOpenConversation,
   onCancelRequest,
@@ -2404,6 +2981,8 @@ function ProfileScreen({
   tokenEvents: TokenEvent[];
   notifications: NotificationItem[];
   dailyBonusClaimed: boolean;
+  isVerifiedStudent: boolean;
+  verifiedEmail: string;
   onOpenFavorite: (item: Item) => void;
   onOpenConversation: (conversationId: number) => void;
   onCancelRequest: (requestId: number) => void;
@@ -2611,7 +3190,11 @@ function ProfileScreen({
           </Text>
 
           <View style={styles.profileList}>
-            <ProfileRow icon="mail" title="University email" value="Verified" />
+            <ProfileRow
+              icon="mail"
+              title="University email"
+              value={isVerifiedStudent ? verifiedEmail : "Not verified"}
+            />
             <ProfileRow
               icon="shield-checkmark"
               title="Deposit system"
@@ -4952,6 +5535,264 @@ const styles = StyleSheet.create({
   },
   tokenEventAmountReserved: {
     color: colors.orange,
+  },
+  onboardingScreen: {
+    flex: 1,
+    backgroundColor: colors.ivory,
+    padding: 20,
+  },
+  onboardingHero: {
+    minHeight: 250,
+    borderRadius: 34,
+    padding: 24,
+    justifyContent: "flex-end",
+    overflow: "hidden",
+  },
+  onboardingLogoMark: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  onboardingBrand: {
+    color: colors.white,
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+  onboardingAmp: {
+    color: "#FFD166",
+  },
+  onboardingTagline: {
+    color: "rgba(255,255,255,0.86)",
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  onboardingContent: {
+    marginTop: 20,
+    backgroundColor: colors.white,
+    borderRadius: 30,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  onboardingIconBox: {
+    width: 62,
+    height: 62,
+    borderRadius: 22,
+    backgroundColor: colors.lightBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  onboardingTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 26,
+    lineHeight: 31,
+    letterSpacing: -0.5,
+  },
+  onboardingText: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 10,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  onboardingDots: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 20,
+  },
+  onboardingDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+  },
+  onboardingDotActive: {
+    width: 28,
+    backgroundColor: colors.blue,
+  },
+  verificationCard: {
+    marginTop: 20,
+    backgroundColor: colors.ivory,
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  verificationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  verificationTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 15,
+  },
+  verificationText: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginBottom: 12,
+    lineHeight: 19,
+  },
+  smartFilterGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  smartFilterChip: {
+    backgroundColor: colors.ivory,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  smartFilterChipActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  smartFilterChipText: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  smartFilterChipTextActive: {
+    color: colors.white,
+  },
+  tokenFilterList: {
+    gap: 8,
+    paddingBottom: 4,
+  },
+  tokenFilterPill: {
+    backgroundColor: colors.ivory,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tokenFilterPillActive: {
+    backgroundColor: colors.orange,
+    borderColor: colors.orange,
+  },
+  tokenFilterText: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  tokenFilterTextActive: {
+    color: colors.white,
+  },
+  addPreviewSection: {
+    marginBottom: 16,
+  },
+  previewListingCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  previewImage: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  previewMeta: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 2,
+    fontSize: 12,
+  },
+  depositToggle: {
+    marginTop: 14,
+    backgroundColor: colors.ivory,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  depositToggleActive: {
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.blue,
+  },
+  depositToggleIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  depositToggleTitle: {
+    color: colors.text,
+    fontWeight: "900",
+  },
+  depositToggleText: {
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  ratingCard: {
+    backgroundColor: colors.white,
+    borderRadius: 30,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  ratingIconBox: {
+    width: 76,
+    height: 76,
+    borderRadius: 28,
+    backgroundColor: "#FFF0EA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  ratingTitle: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  ratingSubtitle: {
+    color: colors.muted,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 21,
+  },
+  ratingStars: {
+    flexDirection: "row",
+    gap: 8,
+    marginVertical: 22,
   },
   bottomNav: {
     backgroundColor: colors.white,
