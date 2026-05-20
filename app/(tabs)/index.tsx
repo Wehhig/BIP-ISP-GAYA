@@ -192,9 +192,9 @@ const translations = {
     availableItems: "Available items",
     noItemsFound: "No items found",
     noItemsText: "Try another search phrase, category or marketplace filter.",
-    user: "User",
-    home: "Home",
-    add: "Add",
+    user: "Użytkownik",
+    home: "Start",
+    add: "Dodaj",
     stats: "Stats",
     borrowing: "Borrowing",
     chats: "Chats",
@@ -215,6 +215,58 @@ const translations = {
     resetDemoData: "Reset demo data",
     loadSampleScenario: "Load sample demo scenario",
     loadPresentationData: "Load presentation data",
+    showingRecommendedItems: "Showing recommended campus items",
+    activeFilterSingular: "active filter",
+    activeFilterPlural: "active filters",
+    marketplaceScope: "Marketplace scope",
+    sortBy: "Sort by",
+    campusMap: "Campus map",
+    tapLocation: "Tap location",
+    showingItemsAt: "Showing items at",
+    locationFilterHint: "This only filters marketplace results. Borrow pickup can still be changed later.",
+    results: "results",
+    itemNearby: "item nearby",
+    itemsNearby: "items nearby",
+    mockCampusMap: "Mock campus map",
+    categoryAll: "All",
+    categoryAudiovisual: "Audiovisual",
+    categoryPrototyping: "Prototyping",
+    categoryDress: "Dress",
+    categoryStudy: "Study",
+    sortRecommended: "Recommended",
+    sortNearest: "Nearest",
+    sortCheapest: "Cheapest",
+    sortTopRated: "Top rated",
+    tokensLower: "tokens",
+    paused: "Paused",
+    mine: "Mine",
+    you: "You",
+    borrowedBy: "Borrowed by",
+    until: "until",
+    pausedHidden: "Paused - hidden from other students",
+    listYourItem: "List your item",
+    listYourItemSubtitle: "Create a realistic listing with pickup point, availability and deposit settings.",
+    livePreview: "Live preview",
+    itemName: "Item name",
+    pickupLocation: "Pickup location",
+    availability: "Availability",
+    depositProtection: "Deposit protection",
+    depositProtectedListing: "Bank-hold guarantee shown on listing.",
+    noDepositRequired: "No deposit required for this item.",
+    tokensPerDay: "Tokens per day",
+    description: "Description",
+    publishItem: "Publish item",
+    borrowSummary: "Borrow summary",
+    owner: "Owner",
+    borrowDuration: "Borrow duration",
+    pickupPoint: "Pickup point",
+    totalTokenCost: "Total token cost",
+    balanceAfterRequest: "Your balance after request",
+    notEnoughTokensDuration: "You do not have enough tokens for this duration.",
+    confirmRequest: "Confirm request",
+    quickQuestions: "Quick questions",
+    writeMessage: "Write a message...",
+    about: "About",
   },
   pl: {
     tagline: "Kampusowy marketplace wymiany",
@@ -249,9 +301,9 @@ const translations = {
     availableItems: "Dostępne rzeczy",
     noItemsFound: "Brak rzeczy",
     noItemsText: "Spróbuj innej frazy, kategorii albo filtra.",
-    user: "User",
-    home: "Home",
-    add: "Add",
+    user: "Utilizador",
+    home: "Início",
+    add: "Adicionar",
     stats: "Statystyki",
     borrowing: "Wypożyczenia",
     chats: "Czaty",
@@ -272,6 +324,58 @@ const translations = {
     resetDemoData: "Resetuj demo",
     loadSampleScenario: "Załaduj przykładowy scenariusz",
     loadPresentationData: "Załaduj dane do prezentacji",
+    showingRecommendedItems: "Pokazuję rekomendowane rzeczy z kampusu",
+    activeFilterSingular: "aktywny filtr",
+    activeFilterPlural: "aktywnych filtrów",
+    marketplaceScope: "Zakres marketplace",
+    sortBy: "Sortuj według",
+    campusMap: "Mapa kampusu",
+    tapLocation: "Kliknij lokalizację",
+    showingItemsAt: "Pokazuję rzeczy w lokalizacji",
+    locationFilterHint: "Ten filtr dotyczy tylko wyników marketplace. Miejsce odbioru nadal można zmienić przy wypożyczeniu.",
+    results: "wyników",
+    itemNearby: "rzecz w pobliżu",
+    itemsNearby: "rzeczy w pobliżu",
+    mockCampusMap: "Mapa kampusu demo",
+    categoryAll: "Wszystko",
+    categoryAudiovisual: "Audio/wideo",
+    categoryPrototyping: "Prototypowanie",
+    categoryDress: "Ubrania",
+    categoryStudy: "Nauka",
+    sortRecommended: "Rekomendowane",
+    sortNearest: "Najbliżej",
+    sortCheapest: "Najtaniej",
+    sortTopRated: "Najwyżej oceniane",
+    tokensLower: "tokenów",
+    paused: "Wstrzymane",
+    mine: "Moje",
+    you: "Ty",
+    borrowedBy: "Wypożyczone przez",
+    until: "do",
+    pausedHidden: "Wstrzymane - ukryte dla innych studentów",
+    listYourItem: "Wystaw rzecz",
+    listYourItemSubtitle: "Utwórz realistyczną ofertę z miejscem odbioru, dostępnością i ustawieniami depozytu.",
+    livePreview: "Podgląd na żywo",
+    itemName: "Nazwa rzeczy",
+    pickupLocation: "Miejsce odbioru",
+    availability: "Dostępność",
+    depositProtection: "Ochrona depozytem",
+    depositProtectedListing: "Na ofercie pokaże się gwarancja depozytu.",
+    noDepositRequired: "Ta rzecz nie wymaga depozytu.",
+    tokensPerDay: "Tokeny za dzień",
+    description: "Opis",
+    publishItem: "Opublikuj rzecz",
+    borrowSummary: "Podsumowanie wypożyczenia",
+    owner: "Właściciel",
+    borrowDuration: "Czas wypożyczenia",
+    pickupPoint: "Punkt odbioru",
+    totalTokenCost: "Łączny koszt w tokenach",
+    balanceAfterRequest: "Saldo po wysłaniu prośby",
+    notEnoughTokensDuration: "Nie masz wystarczająco tokenów na ten czas wypożyczenia.",
+    confirmRequest: "Potwierdź prośbę",
+    quickQuestions: "Szybkie pytania",
+    writeMessage: "Napisz wiadomość...",
+    about: "Dotyczy",
   },
   pt: {
     tagline: "Marketplace de partilha no campus",
@@ -329,12 +433,96 @@ const translations = {
     resetDemoData: "Repor dados demo",
     loadSampleScenario: "Carregar cenário demo",
     loadPresentationData: "Carregar dados da apresentação",
+    showingRecommendedItems: "A mostrar itens recomendados do campus",
+    activeFilterSingular: "filtro ativo",
+    activeFilterPlural: "filtros ativos",
+    marketplaceScope: "Âmbito do marketplace",
+    sortBy: "Ordenar por",
+    campusMap: "Mapa do campus",
+    tapLocation: "Toca numa localização",
+    showingItemsAt: "A mostrar itens em",
+    locationFilterHint: "Este filtro afeta apenas os resultados do marketplace. O ponto de recolha ainda pode ser alterado no pedido.",
+    results: "resultados",
+    itemNearby: "item perto",
+    itemsNearby: "itens perto",
+    mockCampusMap: "Mapa demo do campus",
+    categoryAll: "Tudo",
+    categoryAudiovisual: "Audiovisual",
+    categoryPrototyping: "Prototipagem",
+    categoryDress: "Roupa",
+    categoryStudy: "Estudo",
+    sortRecommended: "Recomendados",
+    sortNearest: "Mais perto",
+    sortCheapest: "Mais barato",
+    sortTopRated: "Melhor avaliados",
+    tokensLower: "tokens",
+    paused: "Pausado",
+    mine: "Meu",
+    you: "Tu",
+    borrowedBy: "Emprestado a",
+    until: "até",
+    pausedHidden: "Pausado - oculto para outros estudantes",
+    listYourItem: "Publicar item",
+    listYourItemSubtitle: "Cria um anúncio realista com ponto de recolha, disponibilidade e depósito.",
+    livePreview: "Pré-visualização",
+    itemName: "Nome do item",
+    pickupLocation: "Local de recolha",
+    availability: "Disponibilidade",
+    depositProtection: "Proteção por depósito",
+    depositProtectedListing: "Garantia de depósito mostrada no anúncio.",
+    noDepositRequired: "Este item não requer depósito.",
+    tokensPerDay: "Tokens por dia",
+    description: "Descrição",
+    publishItem: "Publicar item",
+    borrowSummary: "Resumo do pedido",
+    owner: "Dono",
+    borrowDuration: "Duração do empréstimo",
+    pickupPoint: "Ponto de recolha",
+    totalTokenCost: "Custo total em tokens",
+    balanceAfterRequest: "Saldo após o pedido",
+    notEnoughTokensDuration: "Não tens tokens suficientes para esta duração.",
+    confirmRequest: "Confirmar pedido",
+    quickQuestions: "Perguntas rápidas",
+    writeMessage: "Escreve uma mensagem...",
+    about: "Sobre",
   },
 } as const;
 
 let currentLanguage: Language = "en";
 function t(key: keyof typeof translations["en"]): string {
   return translations[currentLanguage]?.[key] ?? translations.en[key];
+}
+
+function getCategoryLabel(category: string): string {
+  switch (category) {
+    case "All":
+      return t("categoryAll");
+    case "Audiovisual":
+      return t("categoryAudiovisual");
+    case "Prototyping":
+      return t("categoryPrototyping");
+    case "Dress":
+      return t("categoryDress");
+    case "Study":
+      return t("categoryStudy");
+    default:
+      return category;
+  }
+}
+
+function getSortLabel(sortOption: SortOption): string {
+  switch (sortOption) {
+    case "recommended":
+      return t("sortRecommended");
+    case "nearest":
+      return t("sortNearest");
+    case "tokens":
+      return t("sortCheapest");
+    case "rating":
+      return t("sortTopRated");
+    default:
+      return t("sortRecommended");
+  }
 }
 
 
@@ -559,10 +747,11 @@ export default function App() {
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [language, setLanguage] = useState<Language>("en");
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+  const [uiRefreshKey, setUiRefreshKey] = useState(0);
 
   currentLanguage = language;
   colors = themeMode === "dark" ? darkColors : lightColors;
-  styles = useMemo(() => createStyles(colors), [themeMode]);
+  styles = useMemo(() => createStyles(colors), [themeMode, uiRefreshKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -655,6 +844,16 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  const handleChangeLanguage = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+    setUiRefreshKey((value) => value + 1);
+  };
+
+  const handleChangeThemeMode = (nextThemeMode: ThemeMode) => {
+    setThemeMode(nextThemeMode);
+    setUiRefreshKey((value) => value + 1);
+  };
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -2100,7 +2299,7 @@ export default function App() {
 
       <Header />
 
-      <View style={styles.contentShell}>
+      <View key={`${themeMode}-${language}-${uiRefreshKey}`} style={styles.contentShell}>
         {selectedOwnerName ? (
           <OwnerProfileScreen
             ownerName={selectedOwnerName}
@@ -2212,9 +2411,9 @@ export default function App() {
                 onDeleteListing={deleteListing}
                 onToggleListingPause={toggleListingPause}
                 language={language}
-                onChangeLanguage={setLanguage}
+                onChangeLanguage={handleChangeLanguage}
                 themeMode={themeMode}
-                onChangeThemeMode={setThemeMode}
+                onChangeThemeMode={handleChangeThemeMode}
               />
             )}
           </>
@@ -2679,11 +2878,11 @@ function HomeScreen({
       <View style={styles.filterPanel}>
         <View style={styles.filterPanelHeader}>
           <View>
-            <Text style={styles.filterPanelTitle}>Filters & sorting</Text>
+            <Text style={styles.filterPanelTitle}>{t("filtersSorting")}</Text>
             <Text style={styles.filterPanelSubtitle}>
               {activeFilterCount === 0
-                ? "Showing recommended campus items"
-                : `${activeFilterCount} active filter${activeFilterCount === 1 ? "" : "s"}`}
+                ? t("showingRecommendedItems")
+                : `${activeFilterCount} ${activeFilterCount === 1 ? t("activeFilterSingular") : t("activeFilterPlural")}`}
             </Text>
           </View>
 
@@ -2694,15 +2893,15 @@ function HomeScreen({
           )}
         </View>
 
-        <Text style={styles.filterGroupLabel}>Marketplace scope</Text>
+        <Text style={styles.filterGroupLabel}>{t("marketplaceScope")}</Text>
         <View style={styles.ownerFilterRowCompact}>
           <OwnerFilterPill
-            label="All"
+            label={t("all")}
             active={ownerFilter === "all"}
             onPress={() => onChangeOwnerFilter("all")}
           />
           <OwnerFilterPill
-            label="From others"
+            label={t("fromOthers")}
             active={ownerFilter === "others"}
             onPress={() => onChangeOwnerFilter("others")}
           />
@@ -2713,7 +2912,7 @@ function HomeScreen({
           />
         </View>
 
-        <Text style={styles.filterGroupLabel}>Sort by</Text>
+        <Text style={styles.filterGroupLabel}>{t("sortBy")}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -2729,7 +2928,7 @@ function HomeScreen({
           ))}
         </ScrollView>
 
-        <Text style={styles.filterGroupLabel}>Categories</Text>
+        <Text style={styles.filterGroupLabel}>{t("categories")}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -2750,13 +2949,13 @@ function HomeScreen({
                   selectedCategory === category && styles.categoryTextActive,
                 ]}
               >
-                {category}
+                {getCategoryLabel(category)}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
 
-        <Text style={styles.filterGroupLabel}>Smart filters</Text>
+        <Text style={styles.filterGroupLabel}>{t("smartFilters")}</Text>
         <View style={styles.smartFilterGrid}>
           <SmartFilterChip
             icon="shield-checkmark"
@@ -2778,7 +2977,7 @@ function HomeScreen({
           />
         </View>
 
-        <Text style={styles.filterGroupLabel}>Max token cost</Text>
+        <Text style={styles.filterGroupLabel}>{t("maxTokenCost")}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -2792,7 +2991,7 @@ function HomeScreen({
           {maxTokenOptions.map((maxTokens) => (
             <TokenFilterPill
               key={maxTokens}
-              label={`≤ ${maxTokens} tokens`}
+              label={`≤ ${maxTokens} ${t("tokensLower")}`}
               active={maxTokensFilter === maxTokens}
               onPress={() => onChangeMaxTokensFilter(maxTokens)}
             />
@@ -2801,8 +3000,8 @@ function HomeScreen({
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Campus map</Text>
-        <Text style={styles.sectionLink}>Tap location</Text>
+        <Text style={styles.sectionTitle}>{t("campusMap")}</Text>
+        <Text style={styles.sectionLink}>{t("tapLocation")}</Text>
       </View>
 
       <CampusMapMock
@@ -2840,10 +3039,11 @@ function HomeScreen({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.activeLocationTitle}>
-              Showing items at {selectedPickupFilter}
+              
+              {t("showingItemsAt")} {selectedPickupFilter}
             </Text>
             <Text style={styles.activeLocationText}>
-              This only filters marketplace results. Borrow pickup can still be changed later.
+              {t("locationFilterHint")}
             </Text>
           </View>
           <Pressable onPress={() => onChangePickupFilter(null)}>
@@ -2854,7 +3054,7 @@ function HomeScreen({
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{t("availableItems")}</Text>
-        <Text style={styles.sectionLink}>{items.length} results</Text>
+        <Text style={styles.sectionLink}>{items.length} {t("results")}</Text>
       </View>
 
       {items.length > 0 ? (
@@ -2931,7 +3131,7 @@ function SortPill({
         color={active ? colors.white : colors.blue}
       />
       <Text style={[styles.sortPillText, active && styles.sortPillTextActive]}>
-        {option.label}
+        {getSortLabel(option.value)}
       </Text>
     </Pressable>
   );
@@ -3008,10 +3208,10 @@ function CampusHotspotCard({
         />
       </View>
       <Text style={[styles.hotspotTitle, active && styles.hotspotTitleActive]}>
-        {location}
+        {isAll ? t("allLocations") : location}
       </Text>
       <Text style={[styles.hotspotMeta, active && styles.hotspotMetaActive]}>
-        {count === 1 ? "1 item nearby" : `${count} items nearby`}
+        {count === 1 ? `1 ${t("itemNearby")}` : `${count} ${t("itemsNearby")}`}
       </Text>
     </Pressable>
   );
@@ -3046,7 +3246,7 @@ function CampusMapMock({
 
       <View style={styles.mapLegend}>
         <Ionicons name="navigate" size={14} color={colors.blue} />
-        <Text style={styles.mapLegendText}>Mock campus map</Text>
+        <Text style={styles.mapLegendText}>{t("mockCampusMap")}</Text>
       </View>
     </View>
   );
@@ -3128,7 +3328,7 @@ function ItemCard({
         </View>
 
         <View style={styles.imageCardBadge}>
-          <Text style={styles.imageCardBadgeText}>{isPaused ? "Paused" : item.category}</Text>
+          <Text style={styles.imageCardBadgeText}>{isPaused ? t("paused") : getCategoryLabel(item.category)}</Text>
         </View>
       </LinearGradient>
 
@@ -3149,16 +3349,16 @@ function ItemCard({
           <Text style={styles.itemTitle}>{item.title}</Text>
           {isMine && (
             <View style={styles.mineBadge}>
-              <Text style={styles.mineBadgeText}>Mine</Text>
+              <Text style={styles.mineBadgeText}>{t("mine")}</Text>
             </View>
           )}
         </View>
 
         <Text style={styles.itemCategory}>
           {isPaused
-            ? "Paused - hidden from other students"
+            ? t("pausedHidden")
             : activeOwnerRental
-              ? `Borrowed by ${activeOwnerRental.borrower} until ${activeOwnerRental.dueDate}`
+              ? `${t("borrowedBy")} ${activeOwnerRental.borrower} ${t("until")} ${activeOwnerRental.dueDate}`
               : item.availability}
         </Text>
 
@@ -3175,7 +3375,7 @@ function ItemCard({
 
           <View style={styles.metaRow}>
             <Ionicons name="person-circle-outline" size={14} color={colors.muted} />
-            <Text style={styles.metaText}>{isMine ? "You" : item.owner}</Text>
+            <Text style={styles.metaText}>{isMine ? t("you") : item.owner}</Text>
           </View>
         </View>
       </View>
@@ -3490,7 +3690,7 @@ function BorrowSummaryScreen({
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
 
-        <Text style={styles.detailsTopText}>Borrow summary</Text>
+        <Text style={styles.detailsTopText}>{t("borrowSummary")}</Text>
       </View>
 
       <View style={styles.summaryCard}>
@@ -3504,11 +3704,11 @@ function BorrowSummaryScreen({
         </LinearGradient>
 
         <Text style={styles.summaryTitle}>{item.title}</Text>
-        <Text style={styles.summaryOwner}>Owner: {item.owner}</Text>
+        <Text style={styles.summaryOwner}>{t("owner")}: {item.owner}</Text>
 
         <View style={styles.summaryDivider} />
 
-        <Text style={styles.inputLabel}>Borrow duration</Text>
+        <Text style={styles.inputLabel}>{t("borrowDuration")}</Text>
         <View style={styles.optionGrid}>
           {durationOptions.map((option) => (
             <Pressable
@@ -3531,7 +3731,7 @@ function BorrowSummaryScreen({
           ))}
         </View>
 
-        <Text style={styles.inputLabel}>Pickup point</Text>
+        <Text style={styles.inputLabel}>{t("pickupPoint")}</Text>
         <View style={styles.pickupList}>
           {[item.pickupLocation, ...pickupOptions.filter((location) => location !== item.pickupLocation)]
             .slice(0, 4)
@@ -3556,9 +3756,9 @@ function BorrowSummaryScreen({
 
         <View style={styles.costBox}>
           <View>
-            <Text style={styles.costLabel}>Total token cost</Text>
+            <Text style={styles.costLabel}>{t("totalTokenCost")}</Text>
             <Text style={styles.costHint}>
-              Your balance after request: {tokenBalance - totalTokens}
+              {t("balanceAfterRequest")}: {tokenBalance - totalTokens}
             </Text>
           </View>
 
@@ -3570,7 +3770,7 @@ function BorrowSummaryScreen({
 
         {!canAfford && (
           <Text style={styles.notEnoughText}>
-            You do not have enough tokens for this duration.
+            {t("notEnoughTokensDuration")}
           </Text>
         )}
 
@@ -3581,7 +3781,7 @@ function BorrowSummaryScreen({
             onConfirmBorrow(item, selectedDuration.label, selectedPickup, totalTokens)
           }
         >
-          <Text style={styles.primaryButtonText}>Confirm request</Text>
+          <Text style={styles.primaryButtonText}>{t("confirmRequest")}</Text>
           <Ionicons name="checkmark-circle" size={18} color={colors.white} />
         </Pressable>
       </View>
@@ -3736,7 +3936,7 @@ function ChatScreen({
 
           <View style={{ flex: 1 }}>
             <Text style={styles.chatOwner}>{conversation.owner}</Text>
-            <Text style={styles.chatItem}>About: {conversation.itemTitle}</Text>
+            <Text style={styles.chatItem}>{t("about")}: {conversation.itemTitle}</Text>
           </View>
         </View>
 
@@ -3782,7 +3982,7 @@ function ChatScreen({
 
         {keyboardHeight === 0 && (
           <View style={styles.quickQuestionsBox}>
-            <Text style={styles.quickQuestionsTitle}>Quick questions</Text>
+            <Text style={styles.quickQuestionsTitle}>{t("quickQuestions")}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -3813,7 +4013,7 @@ function ChatScreen({
           <TextInput
             value={message}
             onChangeText={setMessage}
-            placeholder="Write a message..."
+            placeholder={t("writeMessage")}
             placeholderTextColor={colors.muted}
             style={styles.chatInput}
             returnKeyType="send"
@@ -3881,13 +4081,13 @@ function AddItemScreen({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.pageTitle}>List your item</Text>
+      <Text style={styles.pageTitle}>{t("listYourItem")}</Text>
       <Text style={styles.pageSubtitle}>
-        Create a realistic listing with pickup point, availability and deposit settings.
+        {t("listYourItemSubtitle")}
       </Text>
 
       <View style={styles.addPreviewSection}>
-        <Text style={styles.filterGroupLabel}>Live preview</Text>
+        <Text style={styles.filterGroupLabel}>{t("livePreview")}</Text>
         <View style={styles.previewListingCard}>
           <LinearGradient
             colors={getColorsForCategory(category)}
@@ -3899,7 +4099,7 @@ function AddItemScreen({
           </LinearGradient>
           <View style={{ flex: 1 }}>
             <Text style={styles.previewTitle}>{title.trim() || "Your item name"}</Text>
-            <Text style={styles.previewMeta}>{category} · {pickupLocation}</Text>
+            <Text style={styles.previewMeta}>{getCategoryLabel(category)} · {pickupLocation}</Text>
             <Text style={styles.previewMeta}>{availability} · {deposit ? "Deposit protected" : "No deposit"}</Text>
           </View>
           <View style={styles.tokensBadge}>
@@ -3910,7 +4110,7 @@ function AddItemScreen({
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.inputLabel}>Item name</Text>
+        <Text style={styles.inputLabel}>{t("itemName")}</Text>
         <TextInput
           placeholder="e.g. DSLR Camera"
           placeholderTextColor={colors.muted}
@@ -3919,7 +4119,7 @@ function AddItemScreen({
           style={styles.input}
         />
 
-        <Text style={styles.inputLabel}>Category</Text>
+        <Text style={styles.inputLabel}>{t("categories")}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -3940,13 +4140,13 @@ function AddItemScreen({
                   category === option && styles.formCategoryTextActive,
                 ]}
               >
-                {option}
+                {getCategoryLabel(option)}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
 
-        <Text style={styles.inputLabel}>Pickup location</Text>
+        <Text style={styles.inputLabel}>{t("pickupLocation")}</Text>
         <View style={styles.pickupList}>
           {pickupOptions.map((location) => (
             <Pressable
@@ -3967,7 +4167,7 @@ function AddItemScreen({
           ))}
         </View>
 
-        <Text style={styles.inputLabel}>Availability</Text>
+        <Text style={styles.inputLabel}>{t("availability")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.formCategoryList}>
           {availabilityOptions.map((option) => (
             <Pressable
@@ -3998,15 +4198,15 @@ function AddItemScreen({
             <Ionicons name={deposit ? "shield-checkmark" : "shield-outline"} size={20} color={deposit ? colors.blue : colors.muted} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.depositToggleTitle}>Deposit protection</Text>
+            <Text style={styles.depositToggleTitle}>{t("depositProtection")}</Text>
             <Text style={styles.depositToggleText}>
-              {deposit ? "Bank-hold guarantee shown on listing." : "No deposit required for this item."}
+              {deposit ? t("depositProtectedListing") : t("noDepositRequired")}
             </Text>
           </View>
           <Ionicons name={deposit ? "toggle" : "toggle-outline"} size={28} color={deposit ? colors.blue : colors.muted} />
         </Pressable>
 
-        <Text style={styles.inputLabel}>Tokens per day</Text>
+        <Text style={styles.inputLabel}>{t("tokensPerDay")}</Text>
         <TextInput
           placeholder="e.g. 10"
           placeholderTextColor={colors.muted}
@@ -4016,7 +4216,7 @@ function AddItemScreen({
           style={styles.input}
         />
 
-        <Text style={styles.inputLabel}>Description</Text>
+        <Text style={styles.inputLabel}>{t("description")}</Text>
         <TextInput
           placeholder="Short description of your item..."
           placeholderTextColor={colors.muted}
@@ -4027,7 +4227,7 @@ function AddItemScreen({
         />
 
         <Pressable style={styles.primaryButton} onPress={handlePublish}>
-          <Text style={styles.primaryButtonText}>Publish item</Text>
+          <Text style={styles.primaryButtonText}>{t("publishItem")}</Text>
           <Ionicons name="add-circle" size={18} color={colors.white} />
         </Pressable>
       </View>
