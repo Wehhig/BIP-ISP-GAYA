@@ -340,6 +340,7 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [borrowSummaryItem, setBorrowSummaryItem] = useState<Item | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [selectedOwnerName, setSelectedOwnerName] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [itemList, setItemList] = useState<Item[]>(initialItems);
   const [tokenBalance, setTokenBalance] = useState(42);
@@ -514,6 +515,7 @@ export default function App() {
     setSelectedItem(null);
     setBorrowSummaryItem(null);
     setSelectedConversationId(null);
+    setSelectedOwnerName(null);
     setQuery("");
     setScreen("home");
 
@@ -630,6 +632,676 @@ export default function App() {
       },
       ...currentNotifications,
     ]);
+  };
+
+
+  const loadDemoScenario = () => {
+    const demoItems: Item[] = [
+      ...initialItems,
+      {
+        id: 9001,
+        title: "Portable LED Light Kit",
+        category: "Audiovisual",
+        tokens: 9,
+        distance: "0.4 km",
+        rating: 4.9,
+        owner: currentUserName,
+        verified: true,
+        deposit: true,
+        description:
+          "A compact LED light kit for interviews, short videos and product shots. Added as a demo listing.",
+        icon: "bulb",
+        pickupLocation: "Media Lab",
+        availability: "Available today",
+        imageColors: ["#7C3AED", "#FF7048"],
+        swaps: 7,
+        condition: "Great",
+      },
+      {
+        id: 9002,
+        title: "Presentation Clicker",
+        category: "Study",
+        tokens: 3,
+        distance: "0.2 km",
+        rating: 4.8,
+        owner: currentUserName,
+        verified: true,
+        deposit: false,
+        description:
+          "Simple clicker for class presentations and pitch decks. Demo listing owned by the current user.",
+        icon: "radio-button-on",
+        pickupLocation: "Main Library",
+        availability: "Available this week",
+        imageColors: ["#2D5BFF", "#B8F2A2"],
+        swaps: 4,
+        condition: "Good",
+        isPaused: true,
+      },
+    ];
+
+    const demoRequests: BorrowRequest[] = [
+      {
+        id: 9101,
+        itemId: 1,
+        itemTitle: "4K Camera Kit",
+        owner: "Marta",
+        tokens: 12,
+        status: "Accepted",
+        date: "Today",
+        duration: "1 day",
+        pickupLocation: "Main Library",
+      },
+      {
+        id: 9102,
+        itemId: 2,
+        itemTitle: "Arduino Starter Kit",
+        owner: "João",
+        tokens: 16,
+        status: "Pending",
+        date: "Today",
+        duration: "3 days",
+        pickupLocation: "Engineering Building",
+      },
+      {
+        id: 9103,
+        itemId: 6,
+        itemTitle: "Laptop Stand",
+        owner: "Daniel",
+        tokens: 4,
+        status: "Returned",
+        date: "Yesterday",
+        duration: "1 day",
+        pickupLocation: "Main Library",
+      },
+    ];
+
+    const demoOwnerRentals: OwnerRental[] = [
+      {
+        id: 9201,
+        itemId: 9001,
+        itemTitle: "Portable LED Light Kit",
+        borrower: "Clara",
+        borrowerEmail: "clara@university.pt",
+        tokensEarned: 9,
+        status: "Active",
+        borrowedAt: "Today",
+        dueDate: "Tomorrow",
+        duration: "1 day",
+        pickupLocation: "Media Lab",
+      },
+      {
+        id: 9202,
+        itemId: 9002,
+        itemTitle: "Presentation Clicker",
+        borrower: "Miguel",
+        borrowerEmail: "miguel@university.pt",
+        tokensEarned: 3,
+        status: "Returned",
+        borrowedAt: "Yesterday",
+        dueDate: "Today",
+        duration: "1 day",
+        pickupLocation: "Main Library",
+      },
+    ];
+
+    const demoConversations: Conversation[] = [
+      {
+        id: 9301,
+        owner: "Marta",
+        itemId: 1,
+        itemTitle: "4K Camera Kit",
+        messages: [
+          {
+            id: 930101,
+            from: "owner",
+            text: "Hi! The 4K Camera Kit is available today. Pickup at Main Library works best.",
+            time: "Now",
+          },
+          {
+            id: 930102,
+            from: "me",
+            text: "Great, when can I collect it?",
+            time: "Now",
+          },
+          {
+            id: 930103,
+            from: "owner",
+            text: "You can collect it today after 4 PM at Main Library.",
+            time: "Now",
+          },
+        ],
+      },
+      {
+        id: 9302,
+        owner: "João",
+        itemId: 2,
+        itemTitle: "Arduino Starter Kit",
+        messages: [
+          {
+            id: 930201,
+            from: "owner",
+            text: "Hello! I can keep the Arduino kit reserved while we confirm pickup.",
+            time: "Now",
+          },
+        ],
+      },
+    ];
+
+    const demoReviews: Review[] = [
+      {
+        id: 9401,
+        itemId: 6,
+        author: currentUserName,
+        rating: 5,
+        text: "Very easy pickup and the item was exactly as described.",
+        date: "Yesterday",
+      },
+    ];
+
+    const demoEvents: TokenEvent[] = [
+      {
+        id: 9501,
+        title: "Portable LED Light Kit borrowed by Clara",
+        amount: 9,
+        type: "earned",
+        date: "Today",
+      },
+      {
+        id: 9502,
+        title: "4K Camera Kit request",
+        amount: -12,
+        type: "reserved",
+        date: "Today",
+      },
+      {
+        id: 9503,
+        title: "Review bonus for Laptop Stand",
+        amount: 1,
+        type: "bonus",
+        date: "Yesterday",
+      },
+      ...initialTokenEvents,
+    ];
+
+    const demoNotifications: NotificationItem[] = [
+      {
+        id: 9601,
+        title: "Request accepted",
+        text: "Marta accepted your request for 4K Camera Kit.",
+        icon: "checkmark-circle",
+        date: "Today",
+      },
+      {
+        id: 9602,
+        title: "New borrower",
+        text: "Clara borrowed your Portable LED Light Kit until Tomorrow.",
+        icon: "people",
+        date: "Today",
+      },
+      {
+        id: 9603,
+        title: "Listing paused",
+        text: "Presentation Clicker is hidden from other students.",
+        icon: "pause-circle",
+        date: "Yesterday",
+      },
+      ...initialNotifications,
+    ];
+
+    setItemList(demoItems);
+    setTokenBalance(58);
+    setBorrowRequests(demoRequests);
+    setOwnerRentals(demoOwnerRentals);
+    setFavoriteIds([1, 3, 9001]);
+    setConversations(demoConversations);
+    setTokenEvents(demoEvents);
+    setNotifications(demoNotifications);
+    setReviews(demoReviews);
+    setDailyBonusClaimed(false);
+    setHasCompletedOnboarding(true);
+    setIsVerifiedStudent(true);
+    setVerifiedEmail("student@university.pt");
+    setSelectedCategory("All");
+    setOwnerFilter("all");
+    setSortOption("recommended");
+    setSelectedPickupFilter(null);
+    setMaxTokensFilter(null);
+    setDepositOnly(false);
+    setVerifiedOnly(false);
+    setAvailableTodayOnly(false);
+    setSelectedItem(null);
+    setBorrowSummaryItem(null);
+    setSelectedConversationId(null);
+    setSelectedOwnerName(null);
+    setQuery("");
+    setScreen("profile");
+
+    Alert.alert(
+      "Demo scenario loaded",
+      "The app now contains sample listings, chats, requests, rentals, notifications and token activity."
+    );
+  };
+
+
+
+  const loadPresentationData = () => {
+    const presentationItems: Item[] = [
+      {
+        ...initialItems[0],
+        rating: 4.8,
+        swaps: 18,
+        condition: "Excellent",
+      },
+      {
+        ...initialItems[1],
+        rating: 4.7,
+        swaps: 11,
+        condition: "Good",
+      },
+      {
+        ...initialItems[2],
+        rating: 4.9,
+        swaps: 9,
+        condition: "Great",
+      },
+      {
+        ...initialItems[3],
+        rating: 4.9,
+        swaps: 14,
+        condition: "Excellent",
+      },
+      {
+        ...initialItems[4],
+        rating: 4.6,
+        swaps: 7,
+        condition: "Good",
+      },
+      {
+        ...initialItems[5],
+        rating: 4.8,
+        swaps: 12,
+        condition: "Great",
+      },
+      {
+        id: 9801,
+        title: "Ring Light + Phone Stand",
+        category: "Audiovisual",
+        tokens: 7,
+        distance: "0.3 km",
+        rating: 4.9,
+        owner: currentUserName,
+        verified: true,
+        deposit: false,
+        description:
+          "A compact ring light with phone stand for interview practice, content recording and pitch videos.",
+        icon: "ellipse",
+        pickupLocation: "Media Lab",
+        availability: "Available today",
+        imageColors: ["#2D5BFF", "#FF7048"],
+        swaps: 15,
+        condition: "Excellent",
+      },
+      {
+        id: 9802,
+        title: "Professional Shirt Set",
+        category: "Dress",
+        tokens: 5,
+        distance: "0.6 km",
+        rating: 4.8,
+        owner: currentUserName,
+        verified: true,
+        deposit: false,
+        description:
+          "Clean formal shirt set for interviews, presentations and career fairs. Prepared for the presentation scenario.",
+        icon: "shirt",
+        pickupLocation: "Student Dorm A",
+        availability: "Available this week",
+        imageColors: ["#171316", "#FF7048"],
+        swaps: 6,
+        condition: "Great",
+      },
+      {
+        id: 9803,
+        title: "Mini Projector",
+        category: "Study",
+        tokens: 11,
+        distance: "0.7 km",
+        rating: 4.7,
+        owner: "Inês",
+        verified: true,
+        deposit: true,
+        description:
+          "Small projector for team presentations, demo nights and group study sessions.",
+        icon: "easel",
+        pickupLocation: "Campus Café",
+        availability: "Available tomorrow",
+        imageColors: ["#7C3AED", "#2D5BFF"],
+        swaps: 10,
+        condition: "Good",
+      },
+    ];
+
+    const presentationRequests: BorrowRequest[] = [
+      {
+        id: 98101,
+        itemId: 1,
+        itemTitle: "4K Camera Kit",
+        owner: "Marta",
+        tokens: 12,
+        status: "Accepted",
+        date: "Today",
+        duration: "1 day",
+        pickupLocation: "Main Library",
+      },
+      {
+        id: 98102,
+        itemId: 9803,
+        itemTitle: "Mini Projector",
+        owner: "Inês",
+        tokens: 11,
+        status: "Pending",
+        date: "Today",
+        duration: "1 day",
+        pickupLocation: "Campus Café",
+      },
+      {
+        id: 98103,
+        itemId: 6,
+        itemTitle: "Laptop Stand",
+        owner: "Daniel",
+        tokens: 4,
+        status: "Returned",
+        date: "Yesterday",
+        duration: "1 day",
+        pickupLocation: "Main Library",
+      },
+    ];
+
+    const presentationOwnerRentals: OwnerRental[] = [
+      {
+        id: 98201,
+        itemId: 9801,
+        itemTitle: "Ring Light + Phone Stand",
+        borrower: "Clara",
+        borrowerEmail: "clara@university.pt",
+        tokensEarned: 7,
+        status: "Active",
+        borrowedAt: "Today",
+        dueDate: "Tomorrow",
+        duration: "1 day",
+        pickupLocation: "Media Lab",
+      },
+      {
+        id: 98202,
+        itemId: 9802,
+        itemTitle: "Professional Shirt Set",
+        borrower: "Miguel",
+        borrowerEmail: "miguel@university.pt",
+        tokensEarned: 5,
+        status: "Returned",
+        borrowedAt: "Yesterday",
+        dueDate: "Today",
+        duration: "1 day",
+        pickupLocation: "Student Dorm A",
+      },
+    ];
+
+    const presentationConversations: Conversation[] = [
+      {
+        id: 98301,
+        owner: "Marta",
+        itemId: 1,
+        itemTitle: "4K Camera Kit",
+        messages: [
+          {
+            id: 983011,
+            from: "owner",
+            text: "Hi! The 4K Camera Kit is available today and I can reserve it for your project.",
+            time: "Now",
+          },
+          {
+            id: 983012,
+            from: "me",
+            text: "Where can I collect it?",
+            time: "Now",
+          },
+          {
+            id: 983013,
+            from: "owner",
+            text: "Pickup is at Main Library, around 0.8 km from you.",
+            time: "Now",
+          },
+        ],
+      },
+      {
+        id: 98302,
+        owner: "Inês",
+        itemId: 9803,
+        itemTitle: "Mini Projector",
+        messages: [
+          {
+            id: 983021,
+            from: "owner",
+            text: "Hello! The Mini Projector is available tomorrow. Pickup at Campus Café works best.",
+            time: "Now",
+          },
+          {
+            id: 983022,
+            from: "me",
+            text: "How many tokens is it?",
+            time: "Now",
+          },
+          {
+            id: 983023,
+            from: "owner",
+            text: "It is 11 tokens for the selected duration. Deposit protection is enabled for this listing.",
+            time: "Now",
+          },
+        ],
+      },
+      {
+        id: 98303,
+        owner: "Clara",
+        itemId: 9801,
+        itemTitle: "Ring Light + Phone Stand",
+        messages: [
+          {
+            id: 983031,
+            from: "owner",
+            text: "Thanks for lending the ring light. I will return it tomorrow at Media Lab.",
+            time: "Now",
+          },
+        ],
+      },
+    ];
+
+    const presentationReviews: Review[] = [
+      {
+        id: 98401,
+        itemId: 6,
+        author: currentUserName,
+        rating: 5,
+        text: "Smooth pickup and the item was exactly as described.",
+        date: "Yesterday",
+      },
+      {
+        id: 98402,
+        itemId: 9802,
+        author: "Miguel",
+        rating: 5,
+        text: "Helpful listing for a last-minute interview outfit.",
+        date: "Yesterday",
+      },
+    ];
+
+    const presentationEvents: TokenEvent[] = [
+      {
+        id: 98501,
+        title: "Ring Light + Phone Stand borrowed by Clara",
+        amount: 7,
+        type: "earned",
+        date: "Today",
+      },
+      {
+        id: 98502,
+        title: "4K Camera Kit request",
+        amount: -12,
+        type: "reserved",
+        date: "Today",
+      },
+      {
+        id: 98503,
+        title: "On-time return bonus for Laptop Stand",
+        amount: 2,
+        type: "bonus",
+        date: "Yesterday",
+      },
+      {
+        id: 98504,
+        title: "Daily campus activity bonus",
+        amount: 5,
+        type: "bonus",
+        date: "Today",
+      },
+    ];
+
+    const presentationNotifications: NotificationItem[] = [
+      {
+        id: 98601,
+        title: "Presentation mode ready",
+        text: "Sample data loaded for a clean walkthrough of Stud&Swap.",
+        icon: "albums",
+        date: "Just now",
+      },
+      {
+        id: 98602,
+        title: "Request accepted",
+        text: "Marta accepted your request for 4K Camera Kit.",
+        icon: "checkmark-circle",
+        date: "Today",
+      },
+      {
+        id: 98603,
+        title: "New borrower",
+        text: "Clara borrowed your Ring Light + Phone Stand until Tomorrow.",
+        icon: "people",
+        date: "Today",
+      },
+      {
+        id: 98604,
+        title: "Smart chat reply",
+        text: "The chat now answers questions about availability, pickup and token cost.",
+        icon: "chatbubbles",
+        date: "Today",
+      },
+    ];
+
+    setItemList(presentationItems);
+    setTokenBalance(67);
+    setBorrowRequests(presentationRequests);
+    setOwnerRentals(presentationOwnerRentals);
+    setFavoriteIds([1, 3, 9801, 9803]);
+    setConversations(presentationConversations);
+    setTokenEvents(presentationEvents);
+    setNotifications(presentationNotifications);
+    setReviews(presentationReviews);
+    setDailyBonusClaimed(true);
+    setHasCompletedOnboarding(true);
+    setIsVerifiedStudent(true);
+    setVerifiedEmail("student@university.pt");
+    setSelectedCategory("All");
+    setOwnerFilter("all");
+    setSortOption("recommended");
+    setSelectedPickupFilter(null);
+    setMaxTokensFilter(null);
+    setDepositOnly(false);
+    setVerifiedOnly(true);
+    setAvailableTodayOnly(false);
+    setSelectedItem(null);
+    setBorrowSummaryItem(null);
+    setSelectedConversationId(null);
+    setSelectedOwnerName(null);
+    setRatingTarget(null);
+    setQuery("");
+    setScreen("home");
+
+    Alert.alert(
+      "Presentation data loaded",
+      "A polished sample state is ready for recording: listings, chats, requests, rentals, reviews, alerts and token activity."
+    );
+  };
+
+  const editListingMock = (itemId: number) => {
+    const item = itemList.find((listing) => listing.id === itemId);
+
+    if (!item || item.owner !== currentUserName) {
+      return;
+    }
+
+    const nextTokens = Math.max(1, item.tokens + 1);
+
+    setItemList((currentItems) =>
+      currentItems.map((listing) =>
+        listing.id === itemId
+          ? {
+              ...listing,
+              tokens: nextTokens,
+              availability: "Available today",
+              description: listing.description.includes("Updated in listing manager")
+                ? listing.description
+                : `${listing.description} Updated in listing manager.`,
+            }
+          : listing
+      )
+    );
+
+    pushNotification(
+      "Listing updated",
+      `${item.title} is now marked as available today and costs ${nextTokens} tokens.`,
+      "create"
+    );
+
+    Alert.alert(
+      "Mock edit applied",
+      `${item.title} is now available today and costs ${nextTokens} tokens.`
+    );
+  };
+
+  const deleteListing = (itemId: number) => {
+    const item = itemList.find((listing) => listing.id === itemId);
+
+    if (!item || item.owner !== currentUserName) {
+      return;
+    }
+
+    const hasActiveRental = ownerRentals.some(
+      (rental) => rental.itemId === itemId && rental.status === "Active"
+    );
+
+    if (hasActiveRental) {
+      Alert.alert(
+        "Cannot delete active listing",
+        "This listing is currently borrowed. Mark it as returned before deleting it."
+      );
+      return;
+    }
+
+    setItemList((currentItems) => currentItems.filter((listing) => listing.id !== itemId));
+    setFavoriteIds((currentIds) => currentIds.filter((id) => id !== itemId));
+    setOwnerRentals((currentRentals) =>
+      currentRentals.filter((rental) => rental.itemId !== itemId)
+    );
+    setConversations((currentConversations) =>
+      currentConversations.filter((conversation) => conversation.itemId !== itemId)
+    );
+
+    pushNotification(
+      "Listing deleted",
+      `${item.title} was removed from your marketplace demo.`,
+      "trash"
+    );
+
+    Alert.alert("Listing deleted", `${item.title} was removed from your listings.`);
   };
 
   const addNewItem = (newItem: NewItemInput) => {
@@ -1209,7 +1881,18 @@ export default function App() {
       <Header />
 
       <View style={styles.contentShell}>
-        {ratingTarget ? (
+        {selectedOwnerName ? (
+          <OwnerProfileScreen
+            ownerName={selectedOwnerName}
+            items={itemList.filter((item) => item.owner === selectedOwnerName)}
+            conversations={conversations}
+            onBack={() => setSelectedOwnerName(null)}
+            onOpenItem={(item) => {
+              setSelectedOwnerName(null);
+              setSelectedItem(item);
+            }}
+          />
+        ) : ratingTarget ? (
           <RatingScreen
             request={ratingTarget}
             onSkip={() => setRatingTarget(null)}
@@ -1234,6 +1917,7 @@ export default function App() {
             onBack={() => setSelectedItem(null)}
             onStartBorrow={startBorrowSummary}
             onOpenConversation={openConversation}
+            onOpenOwnerProfile={setSelectedOwnerName}
             onToggleListingPause={toggleListingPause}
             ownerRentals={ownerRentals.filter(
               (rental) => rental.itemId === selectedItem.id
@@ -1284,6 +1968,7 @@ export default function App() {
                 favoriteItems={itemList.filter((item) =>
                   favoriteIds.includes(item.id)
                 )}
+                myListings={itemList.filter((item) => item.owner === currentUserName)}
                 conversations={conversations}
                 ownerRentals={ownerRentals}
                 tokenEvents={tokenEvents}
@@ -1300,13 +1985,19 @@ export default function App() {
                 onMarkOwnerRentalReturned={markOwnerRentalReturned}
                 onClaimDailyBonus={claimDailyBonus}
                 onResetDemoData={resetDemoData}
+                onLoadDemoScenario={loadDemoScenario}
+                onLoadPresentationData={loadPresentationData}
+                onOpenListing={setSelectedItem}
+                onEditListingMock={editListingMock}
+                onDeleteListing={deleteListing}
+                onToggleListingPause={toggleListingPause}
               />
             )}
           </>
         )}
       </View>
 
-      {!selectedItem && !selectedConversation && !borrowSummaryItem && !ratingTarget && (
+      {!selectedItem && !selectedConversation && !borrowSummaryItem && !ratingTarget && !selectedOwnerName && (
         <BottomNavigation activeScreen={screen} onChangeScreen={setScreen} />
       )}
     </SafeAreaView>
@@ -2273,6 +2964,7 @@ function ItemDetails({
   onBack,
   onStartBorrow,
   onOpenConversation,
+  onOpenOwnerProfile,
   onToggleListingPause,
   ownerRentals,
   reviews,
@@ -2283,6 +2975,7 @@ function ItemDetails({
   onBack: () => void;
   onStartBorrow: (item: Item) => void;
   onOpenConversation: (item: Item) => void;
+  onOpenOwnerProfile: (ownerName: string) => void;
   onToggleListingPause: (itemId: number) => void;
   ownerRentals: OwnerRental[];
   reviews: Review[];
@@ -2332,9 +3025,15 @@ function ItemDetails({
         <View style={styles.detailsTitleRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.detailsTitle}>{item.title}</Text>
-            <Text style={styles.detailsOwner}>
-              Listed by {isMine ? "you" : item.owner}
-            </Text>
+            {isMine ? (
+              <Text style={styles.detailsOwner}>Listed by you</Text>
+            ) : (
+              <Pressable onPress={() => onOpenOwnerProfile(item.owner)}>
+                <Text style={styles.detailsOwnerLink}>
+                  Listed by {item.owner} · View profile
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           <View style={styles.bigTokenBadge}>
@@ -3128,6 +3827,7 @@ function ProfileScreen({
   borrowRequests,
   myListingsCount,
   favoriteItems,
+  myListings,
   conversations,
   ownerRentals,
   tokenEvents,
@@ -3142,11 +3842,18 @@ function ProfileScreen({
   onMarkOwnerRentalReturned,
   onClaimDailyBonus,
   onResetDemoData,
+  onLoadDemoScenario,
+  onLoadPresentationData,
+  onOpenListing,
+  onEditListingMock,
+  onDeleteListing,
+  onToggleListingPause,
 }: {
   tokenBalance: number;
   borrowRequests: BorrowRequest[];
   myListingsCount: number;
   favoriteItems: Item[];
+  myListings: Item[];
   conversations: Conversation[];
   ownerRentals: OwnerRental[];
   tokenEvents: TokenEvent[];
@@ -3161,6 +3868,12 @@ function ProfileScreen({
   onMarkOwnerRentalReturned: (rentalId: number) => void;
   onClaimDailyBonus: () => void;
   onResetDemoData: () => void;
+  onLoadDemoScenario: () => void;
+  onLoadPresentationData: () => void;
+  onOpenListing: (item: Item) => void;
+  onEditListingMock: (itemId: number) => void;
+  onDeleteListing: (itemId: number) => void;
+  onToggleListingPause: (itemId: number) => void;
 }) {
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
@@ -3214,7 +3927,7 @@ function ProfileScreen({
         <ProfileTabButton
           icon="storefront"
           label="My listings"
-          count={activeOwnerRentals.length}
+          count={myListings.length}
           active={activeTab === "listings"}
           onPress={() => setActiveTab("listings")}
         />
@@ -3356,6 +4069,16 @@ function ProfileScreen({
             <Text style={styles.resetButtonText}>Reset demo data</Text>
           </Pressable>
 
+          <Pressable style={styles.loadScenarioButton} onPress={onLoadDemoScenario}>
+            <Ionicons name="albums" size={18} color={colors.blue} />
+            <Text style={styles.loadScenarioButtonText}>Load sample demo scenario</Text>
+          </Pressable>
+
+          <Pressable style={styles.presentationDataButton} onPress={onLoadPresentationData}>
+            <Ionicons name="videocam" size={18} color={colors.white} />
+            <Text style={styles.presentationDataButtonText}>Load presentation data</Text>
+          </Pressable>
+
           <Text style={[styles.sectionTitle, styles.requestsTitle]}>
             Trust & safety
           </Text>
@@ -3418,9 +4141,39 @@ function ProfileScreen({
 
       {activeTab === "listings" && (
         <View>
-          <Text style={styles.tabPageTitle}>My listings activity</Text>
+          <Text style={styles.tabPageTitle}>My listings</Text>
           <Text style={styles.tabPageSubtitle}>
-            See who borrowed your items, due dates, pickup points and tokens earned.
+            Manage your items, pause visibility, apply quick edits and track who borrowed them.
+          </Text>
+
+          {myListings.length > 0 ? (
+            <View style={styles.myListingsList}>
+              {myListings.map((item) => (
+                <MyListingCard
+                  key={item.id}
+                  item={item}
+                  activeRental={ownerRentals.find(
+                    (rental) => rental.itemId === item.id && rental.status === "Active"
+                  )}
+                  onOpen={() => onOpenListing(item)}
+                  onEdit={() => onEditListingMock(item.id)}
+                  onDelete={() => onDeleteListing(item.id)}
+                  onTogglePause={() => onToggleListingPause(item.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="storefront-outline" size={34} color={colors.muted} />
+              <Text style={styles.emptyTitle}>No listings yet</Text>
+              <Text style={styles.emptyText}>
+                Add your first item and start earning tokens from the campus community.
+              </Text>
+            </View>
+          )}
+
+          <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+            Borrower activity
           </Text>
 
           {ownerRentals.length > 0 ? (
@@ -3434,11 +4187,11 @@ function ProfileScreen({
               ))}
             </View>
           ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="storefront-outline" size={34} color={colors.muted} />
+            <View style={styles.emptyStateSmall}>
+              <Ionicons name="people-outline" size={28} color={colors.muted} />
               <Text style={styles.emptyTitle}>No active borrowers yet</Text>
               <Text style={styles.emptyText}>
-                Publish an item and demo mode will simulate a student borrowing it.
+                Demo mode can simulate borrowers after you publish a listing.
               </Text>
             </View>
           )}
@@ -3573,6 +4326,184 @@ function ProfileScreen({
 
       <View style={styles.spacer} />
     </ScrollView>
+  );
+}
+
+
+function OwnerProfileScreen({
+  ownerName,
+  items,
+  conversations,
+  onBack,
+  onOpenItem,
+}: {
+  ownerName: string;
+  items: Item[];
+  conversations: Conversation[];
+  onBack: () => void;
+  onOpenItem: (item: Item) => void;
+}) {
+  const swaps = items.reduce((sum, item) => sum + (item.swaps ?? 12), 0);
+  const averageRating = items.length > 0
+    ? (items.reduce((sum, item) => sum + item.rating, 0) / items.length).toFixed(1)
+    : "4.8";
+  const openConversation = conversations.find((conversation) => conversation.owner === ownerName);
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.detailsTop}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
+        </Pressable>
+
+        <Text style={styles.detailsTopText}>Owner profile</Text>
+      </View>
+
+      <View style={styles.ownerProfileCard}>
+        <View style={styles.ownerProfileAvatar}>
+          <Text style={styles.ownerProfileAvatarText}>{ownerName.slice(0, 1).toUpperCase()}</Text>
+        </View>
+
+        <Text style={styles.ownerProfileName}>{ownerName}</Text>
+        <Text style={styles.ownerProfileSubtitle}>Verified university student</Text>
+
+        <View style={styles.ownerProfileStats}>
+          <ImpactCard icon="star" value={averageRating} label="Rating" />
+          <ImpactCard icon="swap-horizontal" value={`${swaps}`} label="Swaps" />
+          <ImpactCard icon="cube" value={`${items.length}`} label="Items" />
+        </View>
+
+        <View style={styles.ownerProfileTrustBox}>
+          <Ionicons name="shield-checkmark" size={20} color={colors.blue} />
+          <Text style={styles.ownerProfileTrustText}>
+            Usually replies quickly and uses verified campus pickup points.
+          </Text>
+        </View>
+      </View>
+
+      <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+        Items listed by {ownerName}
+      </Text>
+
+      {items.length > 0 ? (
+        <View style={styles.itemsGrid}>
+          {items.map((item) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              onPress={() => onOpenItem(item)}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <Ionicons name="cube-outline" size={34} color={colors.muted} />
+          <Text style={styles.emptyTitle}>No active listings</Text>
+          <Text style={styles.emptyText}>
+            This owner does not have visible listings in the current demo state.
+          </Text>
+        </View>
+      )}
+
+      {openConversation && (
+        <View style={styles.ownerProfileHint}>
+          <Ionicons name="chatbubbles" size={18} color={colors.orange} />
+          <Text style={styles.ownerProfileHintText}>
+            You already have an open chat with {ownerName} about {openConversation.itemTitle}.
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.spacer} />
+    </ScrollView>
+  );
+}
+
+function MyListingCard({
+  item,
+  activeRental,
+  onOpen,
+  onEdit,
+  onDelete,
+  onTogglePause,
+}: {
+  item: Item;
+  activeRental?: OwnerRental;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onTogglePause: () => void;
+}) {
+  return (
+    <View style={styles.myListingCard}>
+      <Pressable style={styles.myListingMain} onPress={onOpen}>
+        <LinearGradient colors={item.imageColors} style={styles.myListingImage}>
+          <Ionicons name={item.icon} size={24} color={colors.white} />
+        </LinearGradient>
+
+        <View style={{ flex: 1 }}>
+          <View style={styles.itemTitleRow}>
+            <Text style={styles.myListingTitle}>{item.title}</Text>
+            {item.isPaused && (
+              <View style={styles.mineBadge}>
+                <Text style={styles.mineBadgeText}>Paused</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.myListingMeta}>
+            {item.tokens} tokens · {item.pickupLocation} · {item.availability}
+          </Text>
+          {activeRental ? (
+            <Text style={styles.myListingRentalText}>
+              Borrowed by {activeRental.borrower} until {activeRental.dueDate}
+            </Text>
+          ) : (
+            <Text style={styles.myListingRentalText}>No active borrower</Text>
+          )}
+        </View>
+      </Pressable>
+
+      <View style={styles.myListingActions}>
+        <Pressable style={styles.myListingActionButton} onPress={onTogglePause}>
+          <Ionicons name={item.isPaused ? "play-circle" : "pause-circle"} size={16} color={colors.blue} />
+          <Text style={styles.myListingActionText}>{item.isPaused ? "Activate" : "Pause"}</Text>
+        </Pressable>
+        <Pressable style={styles.myListingActionButton} onPress={onEdit}>
+          <Ionicons name="create" size={16} color={colors.blue} />
+          <Text style={styles.myListingActionText}>Quick edit</Text>
+        </Pressable>
+        <Pressable style={styles.myListingActionButton} onPress={onDelete}>
+          <Ionicons name="trash" size={16} color={colors.orange} />
+          <Text style={[styles.myListingActionText, { color: colors.orange }]}>Delete</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function RequestTimeline({ status }: { status: RequestStatus }) {
+  const steps = [
+    { key: "sent", label: "Sent", icon: "paper-plane" as keyof typeof Ionicons.glyphMap, active: true },
+    { key: "accepted", label: "Accepted", icon: "checkmark-circle" as keyof typeof Ionicons.glyphMap, active: status === "Accepted" || status === "Returned" },
+    { key: "returned", label: "Returned", icon: "return-down-back" as keyof typeof Ionicons.glyphMap, active: status === "Returned" },
+  ];
+
+  return (
+    <View style={styles.timelineBox}>
+      {steps.map((step, index) => (
+        <View key={step.key} style={styles.timelineStep}>
+          <View style={[styles.timelineIcon, step.active && styles.timelineIconActive]}>
+            <Ionicons name={step.icon} size={14} color={step.active ? colors.white : colors.muted} />
+          </View>
+          <Text style={[styles.timelineLabel, step.active && styles.timelineLabelActive]}>
+            {step.label}
+          </Text>
+          {index < steps.length - 1 && (
+            <View style={[styles.timelineLine, steps[index + 1].active && styles.timelineLineActive]} />
+          )}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -3839,6 +4770,8 @@ function RequestCard({
           <Text style={styles.metaText}>{request.pickupLocation}</Text>
         </View>
       </View>
+
+      <RequestTimeline status={request.status} />
 
       {request.status === "Pending" && (
         <Pressable style={styles.requestActionButton} onPress={onCancel}>
@@ -6006,15 +6939,233 @@ const styles = StyleSheet.create({
     gap: 8,
     marginVertical: 22,
   },
+
+  loadScenarioButton: {
+    marginTop: 10,
+    backgroundColor: colors.lightBlue,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(45, 91, 255, 0.18)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  loadScenarioButtonText: {
+    color: colors.blue,
+    fontWeight: "900",
+  },
+  presentationDataButton: {
+    marginTop: 10,
+    backgroundColor: colors.orange,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 112, 72, 0.2)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  presentationDataButtonText: {
+    color: colors.white,
+    fontWeight: "900",
+  },
+  ownerProfileCard: {
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    padding: 22,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ownerProfileAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 28,
+    backgroundColor: colors.blue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ownerProfileAvatarText: {
+    color: colors.white,
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  ownerProfileName: {
+    marginTop: 14,
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "900",
+  },
+  ownerProfileSubtitle: {
+    color: colors.muted,
+    marginTop: 4,
+    fontWeight: "700",
+  },
+  ownerProfileStats: {
+    width: "100%",
+    marginTop: 18,
+    flexDirection: "row",
+    gap: 10,
+  },
+  ownerProfileTrustBox: {
+    marginTop: 16,
+    backgroundColor: colors.ivory,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  ownerProfileTrustText: {
+    flex: 1,
+    color: colors.muted,
+    fontWeight: "700",
+    lineHeight: 19,
+  },
+  ownerProfileHint: {
+    marginTop: 16,
+    backgroundColor: "#FFF0EA",
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  ownerProfileHintText: {
+    flex: 1,
+    color: colors.text,
+    fontWeight: "700",
+    lineHeight: 19,
+  },
+  detailsOwnerLink: {
+    color: colors.blue,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  myListingsList: {
+    gap: 12,
+  },
+  myListingCard: {
+    backgroundColor: colors.white,
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  myListingMain: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  myListingImage: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  myListingTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  myListingMeta: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  myListingRentalText: {
+    color: colors.blue,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  myListingActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+    flexWrap: "wrap",
+  },
+  myListingActionButton: {
+    backgroundColor: colors.ivory,
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  myListingActionText: {
+    color: colors.blue,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  timelineBox: {
+    marginTop: 14,
+    backgroundColor: colors.ivory,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  timelineStep: {
+    flex: 1,
+    alignItems: "center",
+    position: "relative",
+  },
+  timelineIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+  timelineIconActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  timelineLabel: {
+    marginTop: 6,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  timelineLabelActive: {
+    color: colors.blue,
+  },
+  timelineLine: {
+    position: "absolute",
+    top: 15,
+    left: "58%",
+    right: "-42%",
+    height: 2,
+    backgroundColor: colors.border,
+    zIndex: 1,
+  },
+  timelineLineActive: {
+    backgroundColor: colors.blue,
+  },
   bottomNav: {
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 34,
     paddingHorizontal: 24,
     flexDirection: "row",
     justifyContent: "space-between",
+    minHeight: 88,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 10,
   },
   navItem: {
     width: 80,
