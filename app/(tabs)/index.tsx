@@ -5823,10 +5823,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 10,
-    paddingBottom: 12,
+    paddingBottom: 34,
     paddingHorizontal: 24,
     flexDirection: "row",
     justifyContent: "space-between",
+    minHeight: 86,
   },
   navItem: {
     width: 80,
