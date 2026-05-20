@@ -8,6 +8,7 @@ import {
   Animated,
   Easing,
   Keyboard,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -140,6 +141,9 @@ type PersistedAppState = {
 
 const STORAGE_KEY = "@studswap_demo_state_v1";
 const currentUserName = "Mock Student";
+
+const logoSymbol = require("../../assets/images/studswap-symbol.png");
+const logoWordmark = require("../../assets/images/studswap-wordmark.png");
 
 const categories = ["All", "Audiovisual", "Prototyping", "Dress", "Study"];
 const addCategories = ["Audiovisual", "Prototyping", "Dress", "Study"];
@@ -1391,13 +1395,19 @@ function OnboardingScreen({
         end={{ x: 1, y: 1 }}
         style={styles.onboardingHero}
       >
-        <View style={styles.onboardingLogoMark}>
-          <Ionicons name="sync" size={30} color={colors.white} />
+        <View style={styles.onboardingLogoPanel}>
+          <Image
+            source={logoSymbol}
+            style={styles.onboardingSymbolImage}
+            resizeMode="contain"
+          />
+          <Image
+            source={logoWordmark}
+            style={styles.onboardingWordmarkImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.onboardingTagline}>Together is better</Text>
         </View>
-        <Text style={styles.onboardingBrand}>
-          Stud<Text style={styles.onboardingAmp}>&</Text>Swap
-        </Text>
-        <Text style={styles.onboardingTagline}>Campus sharing marketplace</Text>
       </LinearGradient>
 
       <View style={styles.onboardingContent}>
@@ -1478,17 +1488,19 @@ function Header() {
 
   return (
     <View style={styles.fixedHeader}>
-      <View style={styles.logoMark}>
-        <Animated.View style={{ transform: [{ rotate }] }}>
-          <Ionicons name="sync" size={22} color={colors.white} />
-        </Animated.View>
-      </View>
+      <Animated.Image
+        source={logoSymbol}
+        style={[styles.logoSymbolImage, { transform: [{ rotate }] }]}
+        resizeMode="contain"
+      />
 
-      <View>
-        <Text style={styles.logoText}>
-          Stud<Text style={styles.logoAmp}>&</Text>Swap
-        </Text>
-        <Text style={styles.logoSubtext}>Campus sharing marketplace</Text>
+      <View style={styles.logoTextBlock}>
+        <Image
+          source={logoWordmark}
+          style={styles.logoWordmarkImage}
+          resizeMode="contain"
+        />
+        <Text style={styles.logoSubtext}>Together is better · Campus sharing</Text>
       </View>
     </View>
   );
@@ -1592,9 +1604,9 @@ function HomeScreen({
         </Text>
 
         <View style={styles.heroStats}>
-          <Stat value="100%" label="Verified" />
-          <Stat value="24h" label="Fast borrow" />
-          <Stat value="+∞" label="Campus items" />
+          <Stat value="Uni e-mail" label="Student profiles" />
+          <Stat value="Tokens" label="Earn by lending" />
+          <Stat value="Pickup" label="Meet on campus" />
         </View>
       </LinearGradient>
 
@@ -3860,13 +3872,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ivory,
     paddingHorizontal: 20,
   },
-  logoMark: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.blue,
-    alignItems: "center",
+  logoSymbolImage: {
+    width: 44,
+    height: 44,
+  },
+  logoTextBlock: {
     justifyContent: "center",
+  },
+  logoWordmarkImage: {
+    width: 168,
+    height: 31,
   },
   logoText: {
     fontSize: 22,
@@ -3877,9 +3892,10 @@ const styles = StyleSheet.create({
     color: colors.orange,
   },
   logoSubtext: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.muted,
-    marginTop: -2,
+    marginTop: 0,
+    fontWeight: "700",
   },
   hero: {
     borderRadius: 28,
@@ -5548,14 +5564,21 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     overflow: "hidden",
   },
-  onboardingLogoMark: {
-    width: 68,
-    height: 68,
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.22)",
+  onboardingLogoPanel: {
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 28,
+    padding: 18,
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 18,
+    alignSelf: "stretch",
+  },
+  onboardingSymbolImage: {
+    width: 70,
+    height: 56,
+    marginBottom: 8,
+  },
+  onboardingWordmarkImage: {
+    width: 238,
+    height: 42,
   },
   onboardingBrand: {
     color: colors.white,
@@ -5567,9 +5590,10 @@ const styles = StyleSheet.create({
     color: "#FFD166",
   },
   onboardingTagline: {
-    color: "rgba(255,255,255,0.86)",
+    color: colors.muted,
     fontWeight: "800",
-    marginTop: 4,
+    marginTop: 6,
+    fontStyle: "italic",
   },
   onboardingContent: {
     marginTop: 20,
