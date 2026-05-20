@@ -324,6 +324,13 @@ const sellerReplies = [
   "No problem, message me when you are ready.",
 ];
 
+const chatQuickQuestions = [
+  "Is the item available?",
+  "Where can I collect it?",
+  "When can I collect it?",
+  "How many tokens is it?",
+];
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -1117,6 +1124,13 @@ export default function App() {
       return;
     }
 
+    const activeConversation = conversations.find(
+      (conversation) => conversation.id === conversationId
+    );
+    const activeItem = activeConversation
+      ? itemList.find((item) => item.id === activeConversation.itemId)
+      : undefined;
+
     const myMessage: ChatMessage = {
       id: Date.now() + Math.random(),
       from: "me",
@@ -1138,10 +1152,13 @@ export default function App() {
     );
 
     setTimeout(() => {
+      const conversationForReply = activeConversation;
       const ownerReply: ChatMessage = {
         id: Date.now() + Math.random(),
         from: "owner",
-        text: getRandomItem(sellerReplies),
+        text: conversationForReply
+          ? getSmartSellerReply(cleanMessage, conversationForReply, activeItem)
+          : getRandomItem(sellerReplies),
         time: "Now",
       };
 
@@ -1343,6 +1360,122 @@ function getColorsForCategory(category: string): readonly [string, string] {
   }
 }
 
+function getSmartSellerReply(
+  messageText: string,
+  conversation: Conversation,
+  item?: Item
+): string {
+  const message = messageText.toLowerCase();
+  const itemTitle = item?.title ?? conversation.itemTitle;
+  const pickupLocation = item?.pickupLocation ?? "the selected campus pickup point";
+  const availability = item?.availability ?? "available soon";
+  const distance = item?.distance ? ` It is shown as ${item.distance} away in the app.` : "";
+
+  const asksAvailability =
+    message.includes("available") ||
+    message.includes("still") ||
+    message.includes("free") ||
+    message.includes("can i borrow") ||
+    message.includes("can i rent") ||
+    message.includes("is it ready");
+
+  const asksWhere =
+    message.includes("where") ||
+    message.includes("location") ||
+    message.includes("place") ||
+    message.includes("meet") ||
+    message.includes("pickup point") ||
+    message.includes("pick up point") ||
+    message.includes("collect it");
+
+  const asksWhen =
+    message.includes("when") ||
+    message.includes("what time") ||
+    message.includes("today") ||
+    message.includes("tomorrow") ||
+    message.includes("collect") ||
+    message.includes("pickup") ||
+    message.includes("pick up");
+
+  const asksPrice =
+    message.includes("token") ||
+    message.includes("cost") ||
+    message.includes("price") ||
+    message.includes("how much") ||
+    message.includes("fee");
+
+  const asksDeposit =
+    message.includes("deposit") ||
+    message.includes("safe") ||
+    message.includes("security") ||
+    message.includes("guarantee");
+
+  const asksCondition =
+    message.includes("condition") ||
+    message.includes("working") ||
+    message.includes("damaged") ||
+    message.includes("new") ||
+    message.includes("state");
+
+  const asksDuration =
+    message.includes("how long") ||
+    message.includes("duration") ||
+    message.includes("return") ||
+    message.includes("keep it") ||
+    message.includes("week");
+
+  if (asksAvailability) {
+    return `Yes, ${itemTitle} is still available. It is marked as "${availability}" in the app, so I can keep it reserved while we confirm the pickup.`;
+  }
+
+  if (asksWhere) {
+    return `You can collect ${itemTitle} at ${pickupLocation}.${distance}`;
+  }
+
+  if (asksWhen) {
+    if (availability.toLowerCase().includes("today")) {
+      return `You can collect ${itemTitle} today after 4 PM. Pickup at ${pickupLocation} works best for me.`;
+    }
+
+    if (availability.toLowerCase().includes("tomorrow")) {
+      return `Tomorrow works best for ${itemTitle}. I can meet you at ${pickupLocation} after 10 AM.`;
+    }
+
+    return `We can arrange collection for ${itemTitle} this week. ${pickupLocation} is the easiest pickup point for me.`;
+  }
+
+  if (asksPrice) {
+    const tokens = item?.tokens ?? null;
+    return tokens
+      ? `${itemTitle} is listed for ${tokens} tokens for the base borrow period. Longer duration options are shown in the borrow summary.`
+      : `The token cost is visible in the listing and in the borrow summary before you confirm.`;
+  }
+
+  if (asksDeposit) {
+    if (!item) {
+      return "Deposit protection details are shown in the item details before you confirm the request.";
+    }
+
+    return item.deposit
+      ? `${itemTitle} uses deposit protection, so the borrow request is safer for both sides.`
+      : `${itemTitle} does not require deposit protection, but the request is still linked to verified student profiles.`;
+  }
+
+  if (asksCondition) {
+    return `${itemTitle} is in ${item?.condition ?? "good"} condition and ready to use. I can also show it during pickup if you want.`;
+  }
+
+  if (asksDuration) {
+    return `You can usually borrow ${itemTitle} for 1 day, 3 days or 1 week. The exact token cost is calculated in the borrow summary.`;
+  }
+
+  if (message.includes("thanks") || message.includes("thank you")) {
+    return "No problem! Happy to help.";
+  }
+
+  return getRandomItem(sellerReplies);
+}
+
 function OnboardingScreen({
   onComplete,
 }: {
@@ -1483,7 +1616,7 @@ function Header() {
 
   const rotate = spinValue.interpolate({
     inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
+    outputRange: ["0deg", "-360deg"],
   });
 
   return (
@@ -2662,6 +2795,10 @@ function ChatScreen({
     setMessage("");
   };
 
+  const handleQuickQuestion = (question: string) => {
+    onSendMessage(conversation.id, question);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.chatKeyboardAvoiding}
@@ -2719,6 +2856,28 @@ function ChatScreen({
             </View>
           ))}
         </ScrollView>
+
+        {keyboardHeight === 0 && (
+          <View style={styles.quickQuestionsBox}>
+            <Text style={styles.quickQuestionsTitle}>Quick questions</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickQuestionsRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {chatQuickQuestions.map((question) => (
+                <Pressable
+                  key={question}
+                  style={styles.quickQuestionPill}
+                  onPress={() => handleQuickQuestion(question)}
+                >
+                  <Text style={styles.quickQuestionText}>{question}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         <View
           style={[
@@ -4831,6 +4990,35 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     gap: 10,
   },
+  quickQuestionsBox: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickQuestionsTitle: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  quickQuestionsRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  quickQuestionPill: {
+    backgroundColor: colors.lightBlue,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickQuestionText: {
+    color: colors.blue,
+    fontWeight: "900",
+    fontSize: 12,
+  },
   messageBubble: {
     maxWidth: "82%",
     borderRadius: 20,
@@ -5823,11 +6011,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: 10,
-    paddingBottom: 34,
+    paddingBottom: 12,
     paddingHorizontal: 24,
     flexDirection: "row",
     justifyContent: "space-between",
-    minHeight: 86,
   },
   navItem: {
     width: 80,
