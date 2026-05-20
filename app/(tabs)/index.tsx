@@ -21,6 +21,8 @@ import {
 } from "react-native";
 
 type Screen = "home" | "add" | "profile";
+type Language = "en" | "pl" | "pt";
+type ThemeMode = "light" | "dark";
 type OwnerFilter = "all" | "others" | "mine";
 type PickupFilter = string | null;
 type SortOption = "recommended" | "nearest" | "tokens" | "rating";
@@ -137,10 +139,204 @@ type PersistedAppState = {
   isVerifiedStudent: boolean;
   verifiedEmail: string;
   reviews: Review[];
+  language: Language;
+  themeMode: ThemeMode;
 };
 
 const STORAGE_KEY = "@studswap_demo_state_v1";
 const currentUserName = "Mock Student";
+
+
+const languageOptions: { value: Language; label: string; shortLabel: string }[] = [
+  { value: "en", label: "English", shortLabel: "EN" },
+  { value: "pt", label: "Português", shortLabel: "PT" },
+  { value: "pl", label: "Polski", shortLabel: "PL" },
+];
+
+const themeOptions: { value: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: "light", label: "Light", icon: "sunny" },
+  { value: "dark", label: "Dark", icon: "moon" },
+];
+
+const translations = {
+  en: {
+    tagline: "Campus sharing marketplace",
+    heroTitle: "Borrow what you need.\nLend what you own.",
+    heroText: "A secure student marketplace for gear, tools and professional kits.",
+    heroBadge: "Launching in Porto & beyond",
+    statEmailValue: "Uni e-mail",
+    statEmailLabel: "Student profiles",
+    statTokensValue: "Tokens",
+    statTokensLabel: "Earn by lending",
+    statPickupValue: "Pickup",
+    statPickupLabel: "Meet on campus",
+    searchPlaceholder: "Search gear, tools or attire...",
+    marketplace: "Marketplace",
+    filtersSorting: "Filters & sorting",
+    activeFilters: "active filters",
+    clear: "Clear",
+    categories: "Categories",
+    explore: "Explore",
+    all: "All",
+    fromOthers: "From others",
+    myListings: "My listings",
+    sort: "Sort",
+    smartFilters: "Smart filters",
+    depositProtected: "Deposit protected",
+    verifiedOwners: "Verified owners",
+    availableToday: "Available today",
+    maxTokenCost: "Max token cost",
+    anyPrice: "Any price",
+    campusPickupPoints: "Campus pickup points",
+    allLocations: "All locations",
+    availableItems: "Available items",
+    noItemsFound: "No items found",
+    noItemsText: "Try another search phrase, category or marketplace filter.",
+    user: "User",
+    home: "Home",
+    add: "Add",
+    stats: "Stats",
+    borrowing: "Borrowing",
+    chats: "Chats",
+    saved: "Saved",
+    wallet: "Wallet",
+    alerts: "Alerts",
+    settings: "Settings",
+    language: "Language",
+    appearance: "Appearance",
+    light: "Light",
+    dark: "Dark",
+    appPreferences: "App preferences",
+    appPreferencesText: "Choose the language and theme for this demo.",
+    tokenBalance: "Token balance",
+    campusBonusClaimed: "Campus bonus claimed",
+    claimDailyBonus: "Claim daily campus bonus",
+    demoDataSaved: "Demo data is saved locally",
+    resetDemoData: "Reset demo data",
+    loadSampleScenario: "Load sample demo scenario",
+    loadPresentationData: "Load presentation data",
+  },
+  pl: {
+    tagline: "Kampusowy marketplace wymiany",
+    heroTitle: "Pożyczaj to, czego potrzebujesz.\nUdostępniaj to, co masz.",
+    heroText: "Bezpieczny marketplace studencki na sprzęt, narzędzia i rzeczy do projektów.",
+    heroBadge: "Start w Porto i dalej",
+    statEmailValue: "E-mail uczelni",
+    statEmailLabel: "Profile studentów",
+    statTokensValue: "Tokeny",
+    statTokensLabel: "Zarabiaj za lending",
+    statPickupValue: "Odbiór",
+    statPickupLabel: "Spotkanie na kampusie",
+    searchPlaceholder: "Szukaj sprzętu, narzędzi lub ubrań...",
+    marketplace: "Marketplace",
+    filtersSorting: "Filtry i sortowanie",
+    activeFilters: "aktywnych filtrów",
+    clear: "Wyczyść",
+    categories: "Kategorie",
+    explore: "Przeglądaj",
+    all: "Wszystko",
+    fromOthers: "Od innych",
+    myListings: "Moje oferty",
+    sort: "Sortowanie",
+    smartFilters: "Szybkie filtry",
+    depositProtected: "Ochrona depozytem",
+    verifiedOwners: "Zweryfikowani właściciele",
+    availableToday: "Dostępne dziś",
+    maxTokenCost: "Maks. koszt tokenów",
+    anyPrice: "Dowolna cena",
+    campusPickupPoints: "Punkty odbioru na kampusie",
+    allLocations: "Wszystkie lokalizacje",
+    availableItems: "Dostępne rzeczy",
+    noItemsFound: "Brak rzeczy",
+    noItemsText: "Spróbuj innej frazy, kategorii albo filtra.",
+    user: "User",
+    home: "Home",
+    add: "Add",
+    stats: "Statystyki",
+    borrowing: "Wypożyczenia",
+    chats: "Czaty",
+    saved: "Zapisane",
+    wallet: "Portfel",
+    alerts: "Alerty",
+    settings: "Ustawienia",
+    language: "Język",
+    appearance: "Wygląd",
+    light: "Jasny",
+    dark: "Ciemny",
+    appPreferences: "Preferencje aplikacji",
+    appPreferencesText: "Wybierz język i motyw dla tego demo.",
+    tokenBalance: "Saldo tokenów",
+    campusBonusClaimed: "Bonus odebrany",
+    claimDailyBonus: "Odbierz dzienny bonus",
+    demoDataSaved: "Dane demo zapisują się lokalnie",
+    resetDemoData: "Resetuj demo",
+    loadSampleScenario: "Załaduj przykładowy scenariusz",
+    loadPresentationData: "Załaduj dane do prezentacji",
+  },
+  pt: {
+    tagline: "Marketplace de partilha no campus",
+    heroTitle: "Pede emprestado o que precisas.\nPartilha o que tens.",
+    heroText: "Um marketplace seguro para estudantes partilharem equipamento, ferramentas e kits profissionais.",
+    heroBadge: "A lançar no Porto e além",
+    statEmailValue: "E-mail uni",
+    statEmailLabel: "Perfis de estudantes",
+    statTokensValue: "Tokens",
+    statTokensLabel: "Ganha ao emprestar",
+    statPickupValue: "Pickup",
+    statPickupLabel: "Encontro no campus",
+    searchPlaceholder: "Procura equipamento, ferramentas ou roupa...",
+    marketplace: "Marketplace",
+    filtersSorting: "Filtros e ordenação",
+    activeFilters: "filtros ativos",
+    clear: "Limpar",
+    categories: "Categorias",
+    explore: "Explorar",
+    all: "Tudo",
+    fromOthers: "De outros",
+    myListings: "As minhas ofertas",
+    sort: "Ordenar",
+    smartFilters: "Filtros rápidos",
+    depositProtected: "Proteção por depósito",
+    verifiedOwners: "Donos verificados",
+    availableToday: "Disponível hoje",
+    maxTokenCost: "Custo máximo",
+    anyPrice: "Qualquer preço",
+    campusPickupPoints: "Pontos de recolha no campus",
+    allLocations: "Todas as localizações",
+    availableItems: "Itens disponíveis",
+    noItemsFound: "Nenhum item encontrado",
+    noItemsText: "Tenta outra pesquisa, categoria ou filtro.",
+    user: "User",
+    home: "Home",
+    add: "Add",
+    stats: "Estatísticas",
+    borrowing: "Empréstimos",
+    chats: "Chats",
+    saved: "Guardados",
+    wallet: "Carteira",
+    alerts: "Alertas",
+    settings: "Definições",
+    language: "Idioma",
+    appearance: "Aparência",
+    light: "Claro",
+    dark: "Escuro",
+    appPreferences: "Preferências da app",
+    appPreferencesText: "Escolhe o idioma e o tema para esta demo.",
+    tokenBalance: "Saldo de tokens",
+    campusBonusClaimed: "Bónus recebido",
+    claimDailyBonus: "Receber bónus diário",
+    demoDataSaved: "Dados demo guardados localmente",
+    resetDemoData: "Repor dados demo",
+    loadSampleScenario: "Carregar cenário demo",
+    loadPresentationData: "Carregar dados da apresentação",
+  },
+} as const;
+
+let currentLanguage: Language = "en";
+function t(key: keyof typeof translations["en"]): string {
+  return translations[currentLanguage]?.[key] ?? translations.en[key];
+}
+
 
 const logoSymbol = require("../../assets/images/studswap-symbol.png");
 const logoWordmark = require("../../assets/images/studswap-wordmark.png");
@@ -361,6 +557,12 @@ export default function App() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [availableTodayOnly, setAvailableTodayOnly] = useState(false);
   const [isStorageReady, setIsStorageReady] = useState(false);
+  const [language, setLanguage] = useState<Language>("en");
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+
+  currentLanguage = language;
+  colors = themeMode === "dark" ? darkColors : lightColors;
+  styles = useMemo(() => createStyles(colors), [themeMode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -430,6 +632,14 @@ export default function App() {
         if (Array.isArray(savedState.reviews)) {
           setReviews(savedState.reviews);
         }
+
+        if (savedState.language === "en" || savedState.language === "pl" || savedState.language === "pt") {
+          setLanguage(savedState.language);
+        }
+
+        if (savedState.themeMode === "light" || savedState.themeMode === "dark") {
+          setThemeMode(savedState.themeMode);
+        }
       } catch (error) {
         console.warn("Failed to load Stud&Swap demo state", error);
       } finally {
@@ -465,6 +675,8 @@ export default function App() {
       isVerifiedStudent,
       verifiedEmail,
       reviews,
+      language,
+      themeMode,
     };
 
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateToPersist)).catch(
@@ -487,6 +699,8 @@ export default function App() {
     isVerifiedStudent,
     verifiedEmail,
     reviews,
+    language,
+    themeMode,
   ]);
 
   const resetDemoData = async () => {
@@ -508,6 +722,8 @@ export default function App() {
     setDepositOnly(false);
     setVerifiedOnly(false);
     setAvailableTodayOnly(false);
+    setLanguage("en");
+    setThemeMode("light");
     setSelectedCategory("All");
     setOwnerFilter("all");
     setSortOption("recommended");
@@ -869,6 +1085,8 @@ export default function App() {
     setDepositOnly(false);
     setVerifiedOnly(false);
     setAvailableTodayOnly(false);
+    setLanguage("en");
+    setThemeMode("light");
     setSelectedItem(null);
     setBorrowSummaryItem(null);
     setSelectedConversationId(null);
@@ -1217,6 +1435,8 @@ export default function App() {
     setDepositOnly(false);
     setVerifiedOnly(true);
     setAvailableTodayOnly(false);
+    setLanguage("en");
+    setThemeMode("light");
     setSelectedItem(null);
     setBorrowSummaryItem(null);
     setSelectedConversationId(null);
@@ -1852,7 +2072,7 @@ export default function App() {
   if (!isStorageReady) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
+        <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
         <Header />
         <View style={styles.loadingState}>
           <Ionicons name="save" size={34} color={colors.blue} />
@@ -1868,7 +2088,7 @@ export default function App() {
   if (!hasCompletedOnboarding) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
+        <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
         <OnboardingScreen onComplete={completeOnboarding} />
       </SafeAreaView>
     );
@@ -1876,7 +2096,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+      <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
 
       <Header />
 
@@ -1991,6 +2211,10 @@ export default function App() {
                 onEditListingMock={editListingMock}
                 onDeleteListing={deleteListing}
                 onToggleListingPause={toggleListingPause}
+                language={language}
+                onChangeLanguage={setLanguage}
+                themeMode={themeMode}
+                onChangeThemeMode={setThemeMode}
               />
             )}
           </>
@@ -2416,21 +2640,21 @@ function HomeScreen({
       >
         <View style={styles.heroBadge}>
           <Ionicons name="location" size={14} color={colors.blue} />
-          <Text style={styles.heroBadgeText}>Launching in Porto & beyond</Text>
+          <Text style={styles.heroBadgeText}>{t("heroBadge")}</Text>
         </View>
 
         <Text style={styles.heroTitle}>
-          Borrow what you need.{"\n"}Lend what you own.
+          {t("heroTitle")}
         </Text>
 
         <Text style={styles.heroText}>
-          A secure student marketplace for gear, tools and professional kits.
+          {t("heroText")}
         </Text>
 
         <View style={styles.heroStats}>
-          <Stat value="Uni e-mail" label="Student profiles" />
-          <Stat value="Tokens" label="Earn by lending" />
-          <Stat value="Pickup" label="Meet on campus" />
+          <Stat value={t("statEmailValue")} label={t("statEmailLabel")} />
+          <Stat value={t("statTokensValue")} label={t("statTokensLabel")} />
+          <Stat value={t("statPickupValue")} label={t("statPickupLabel")} />
         </View>
       </LinearGradient>
 
@@ -2440,7 +2664,7 @@ function HomeScreen({
         <TextInput
           value={query}
           onChangeText={onChangeQuery}
-          placeholder="Search gear, tools or attire..."
+          placeholder={t("searchPlaceholder")}
           placeholderTextColor={colors.muted}
           style={styles.searchInput}
         />
@@ -2465,7 +2689,7 @@ function HomeScreen({
 
           {activeFilterCount > 0 && (
             <Pressable onPress={clearFilters} style={styles.clearFiltersButton}>
-              <Text style={styles.clearFiltersText}>Clear</Text>
+              <Text style={styles.clearFiltersText}>{t("clear")}</Text>
             </Pressable>
           )}
         </View>
@@ -2483,7 +2707,7 @@ function HomeScreen({
             onPress={() => onChangeOwnerFilter("others")}
           />
           <OwnerFilterPill
-            label="My listings"
+            label={t("myListings")}
             active={ownerFilter === "mine"}
             onPress={() => onChangeOwnerFilter("mine")}
           />
@@ -2536,19 +2760,19 @@ function HomeScreen({
         <View style={styles.smartFilterGrid}>
           <SmartFilterChip
             icon="shield-checkmark"
-            label="Deposit protected"
+            label={t("depositProtected")}
             active={depositOnly}
             onPress={onToggleDepositOnly}
           />
           <SmartFilterChip
             icon="school"
-            label="Verified owners"
+            label={t("verifiedOwners")}
             active={verifiedOnly}
             onPress={onToggleVerifiedOnly}
           />
           <SmartFilterChip
             icon="today"
-            label="Available today"
+            label={t("availableToday")}
             active={availableTodayOnly}
             onPress={onToggleAvailableTodayOnly}
           />
@@ -2561,7 +2785,7 @@ function HomeScreen({
           contentContainerStyle={styles.tokenFilterList}
         >
           <TokenFilterPill
-            label="Any price"
+            label={t("anyPrice")}
             active={maxTokensFilter === null}
             onPress={() => onChangeMaxTokensFilter(null)}
           />
@@ -2629,7 +2853,7 @@ function HomeScreen({
       )}
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Available items</Text>
+        <Text style={styles.sectionTitle}>{t("availableItems")}</Text>
         <Text style={styles.sectionLink}>{items.length} results</Text>
       </View>
 
@@ -2649,9 +2873,9 @@ function HomeScreen({
       ) : (
         <View style={styles.emptyState}>
           <Ionicons name="search" size={34} color={colors.muted} />
-          <Text style={styles.emptyTitle}>No items found</Text>
+          <Text style={styles.emptyTitle}>{t("noItemsFound")}</Text>
           <Text style={styles.emptyText}>
-            Try another search phrase, category or marketplace filter.
+            {t("noItemsText")}
           </Text>
         </View>
       )}
@@ -3848,6 +4072,10 @@ function ProfileScreen({
   onEditListingMock,
   onDeleteListing,
   onToggleListingPause,
+  language,
+  onChangeLanguage,
+  themeMode,
+  onChangeThemeMode,
 }: {
   tokenBalance: number;
   borrowRequests: BorrowRequest[];
@@ -3874,6 +4102,10 @@ function ProfileScreen({
   onEditListingMock: (itemId: number) => void;
   onDeleteListing: (itemId: number) => void;
   onToggleListingPause: (itemId: number) => void;
+  language: Language;
+  onChangeLanguage: (language: Language) => void;
+  themeMode: ThemeMode;
+  onChangeThemeMode: (themeMode: ThemeMode) => void;
 }) {
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
@@ -3913,47 +4145,47 @@ function ProfileScreen({
       >
         <ProfileTabButton
           icon="grid"
-          label="Stats"
+          label={t("stats")}
           active={activeTab === "overview"}
           onPress={() => setActiveTab("overview")}
         />
         <ProfileTabButton
           icon="document-text"
-          label="Borrowing"
+          label={t("borrowing")}
           count={activeBorrowRequests.length}
           active={activeTab === "borrowing"}
           onPress={() => setActiveTab("borrowing")}
         />
         <ProfileTabButton
           icon="storefront"
-          label="My listings"
+          label={t("myListings")}
           count={myListings.length}
           active={activeTab === "listings"}
           onPress={() => setActiveTab("listings")}
         />
         <ProfileTabButton
           icon="chatbubbles"
-          label="Chats"
+          label={t("chats")}
           count={conversations.length}
           active={activeTab === "chats"}
           onPress={() => setActiveTab("chats")}
         />
         <ProfileTabButton
           icon="heart"
-          label="Saved"
+          label={t("saved")}
           count={favoriteItems.length}
           active={activeTab === "saved"}
           onPress={() => setActiveTab("saved")}
         />
         <ProfileTabButton
           icon="diamond"
-          label="Wallet"
+          label={t("wallet")}
           active={activeTab === "wallet"}
           onPress={() => setActiveTab("wallet")}
         />
         <ProfileTabButton
           icon="notifications"
-          label="Alerts"
+          label={t("alerts")}
           count={notifications.length}
           active={activeTab === "alerts"}
           onPress={() => setActiveTab("alerts")}
@@ -3964,7 +4196,7 @@ function ProfileScreen({
         <View>
           <View style={styles.walletCard}>
             <View>
-              <Text style={styles.walletLabel}>Token balance</Text>
+              <Text style={styles.walletLabel}>{t("tokenBalance")}</Text>
               <Text style={styles.walletValue}>{tokenBalance}</Text>
             </View>
 
@@ -3983,8 +4215,8 @@ function ProfileScreen({
             <View>
               <Text style={styles.bonusButtonTitle}>
                 {dailyBonusClaimed
-                  ? "Campus bonus claimed"
-                  : "Claim daily campus bonus"}
+                  ? t("campusBonusClaimed")
+                  : t("claimDailyBonus")}
               </Text>
               <Text style={styles.bonusButtonText}>
                 {dailyBonusClaimed
@@ -4048,6 +4280,49 @@ function ProfileScreen({
           </View>
 
           <Text style={[styles.sectionTitle, styles.requestsTitle]}>
+            {t("settings")}
+          </Text>
+
+          <View style={styles.settingsCard}>
+            <View style={styles.settingsHeader}>
+              <View style={styles.storageIcon}>
+                <Ionicons name="settings" size={22} color={colors.blue} />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.storageTitle}>{t("appPreferences")}</Text>
+                <Text style={styles.storageText}>{t("appPreferencesText")}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.settingsLabel}>{t("language")}</Text>
+            <View style={styles.settingsChoiceRow}>
+              {languageOptions.map((option) => (
+                <SettingsChoice
+                  key={option.value}
+                  label={option.shortLabel}
+                  sublabel={option.label}
+                  active={language === option.value}
+                  onPress={() => onChangeLanguage(option.value)}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.settingsLabel}>{t("appearance")}</Text>
+            <View style={styles.settingsChoiceRow}>
+              {themeOptions.map((option) => (
+                <SettingsChoice
+                  key={option.value}
+                  icon={option.icon}
+                  label={option.value === "light" ? t("light") : t("dark")}
+                  active={themeMode === option.value}
+                  onPress={() => onChangeThemeMode(option.value)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <Text style={[styles.sectionTitle, styles.requestsTitle]}>
             Local storage
           </Text>
 
@@ -4057,7 +4332,7 @@ function ProfileScreen({
             </View>
 
             <View style={{ flex: 1 }}>
-              <Text style={styles.storageTitle}>Demo data is saved locally</Text>
+              <Text style={styles.storageTitle}>{t("demoDataSaved")}</Text>
               <Text style={styles.storageText}>
                 Favorites, listings, chats, requests, notifications and tokens stay after app reload.
               </Text>
@@ -4066,17 +4341,17 @@ function ProfileScreen({
 
           <Pressable style={styles.resetButton} onPress={onResetDemoData}>
             <Ionicons name="refresh" size={18} color={colors.orange} />
-            <Text style={styles.resetButtonText}>Reset demo data</Text>
+            <Text style={styles.resetButtonText}>{t("resetDemoData")}</Text>
           </Pressable>
 
           <Pressable style={styles.loadScenarioButton} onPress={onLoadDemoScenario}>
             <Ionicons name="albums" size={18} color={colors.blue} />
-            <Text style={styles.loadScenarioButtonText}>Load sample demo scenario</Text>
+            <Text style={styles.loadScenarioButtonText}>{t("loadSampleScenario")}</Text>
           </Pressable>
 
           <Pressable style={styles.presentationDataButton} onPress={onLoadPresentationData}>
             <Ionicons name="videocam" size={18} color={colors.white} />
-            <Text style={styles.presentationDataButtonText}>Load presentation data</Text>
+            <Text style={styles.presentationDataButtonText}>{t("loadPresentationData")}</Text>
           </Pressable>
 
           <Text style={[styles.sectionTitle, styles.requestsTitle]}>
@@ -4260,7 +4535,7 @@ function ProfileScreen({
         <View>
           <View style={styles.walletCard}>
             <View>
-              <Text style={styles.walletLabel}>Token balance</Text>
+              <Text style={styles.walletLabel}>{t("tokenBalance")}</Text>
               <Text style={styles.walletValue}>{tokenBalance}</Text>
             </View>
 
@@ -4279,8 +4554,8 @@ function ProfileScreen({
             <View>
               <Text style={styles.bonusButtonTitle}>
                 {dailyBonusClaimed
-                  ? "Campus bonus claimed"
-                  : "Claim daily campus bonus"}
+                  ? t("campusBonusClaimed")
+                  : t("claimDailyBonus")}
               </Text>
               <Text style={styles.bonusButtonText}>
                 {dailyBonusClaimed
@@ -4504,6 +4779,54 @@ function RequestTimeline({ status }: { status: RequestStatus }) {
         </View>
       ))}
     </View>
+  );
+}
+
+
+function SettingsChoice({
+  icon,
+  label,
+  sublabel,
+  active,
+  onPress,
+}: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  label: string;
+  sublabel?: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.settingsChoice, active && styles.settingsChoiceActive]}
+    >
+      {icon && (
+        <Ionicons
+          name={icon}
+          size={18}
+          color={active ? colors.white : colors.blue}
+        />
+      )}
+      <Text
+        style={[
+          styles.settingsChoiceText,
+          active && styles.settingsChoiceTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+      {sublabel && (
+        <Text
+          style={[
+            styles.settingsChoiceSubtext,
+            active && styles.settingsChoiceSubtextActive,
+          ]}
+        >
+          {sublabel}
+        </Text>
+      )}
+    </Pressable>
   );
 }
 
@@ -4858,21 +5181,21 @@ function BottomNavigation({
     <View style={styles.bottomNav}>
       <NavItem
         icon="person"
-        label="User"
+        label={t("user")}
         active={activeScreen === "profile"}
         onPress={() => onChangeScreen("profile")}
       />
 
       <NavItem
         icon="home"
-        label="Home"
+        label={t("home")}
         active={activeScreen === "home"}
         onPress={() => onChangeScreen("home")}
       />
 
       <NavItem
         icon="add-circle"
-        label="Add"
+        label={t("add")}
         active={activeScreen === "add"}
         onPress={() => onChangeScreen("add")}
       />
@@ -4905,7 +5228,7 @@ function NavItem({
   );
 }
 
-const colors = {
+const lightColors = {
   blue: "#2D5BFF",
   orange: "#FF7048",
   green: "#B8F2A2",
@@ -4918,7 +5241,25 @@ const colors = {
   white: "#FFFFFF",
 };
 
-const styles = StyleSheet.create({
+const darkColors = {
+  blue: "#76A7FF",
+  orange: "#FF8A62",
+  green: "#B8F2A2",
+  ivory: "#0B1120",
+  lightBlue: "#1E2A44",
+  dark: "#050816",
+  text: "#F8FAFC",
+  muted: "#A7B0C0",
+  border: "#253048",
+  white: "#111827",
+};
+
+type AppColors = typeof lightColors;
+let colors: AppColors = lightColors;
+let styles = createStyles(colors);
+
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
   loadingState: {
     flex: 1,
     alignItems: "center",
@@ -7152,6 +7493,63 @@ const styles = StyleSheet.create({
   timelineLineActive: {
     backgroundColor: colors.blue,
   },
+  settingsCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
+  },
+  settingsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  settingsLabel: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 14,
+    marginTop: 4,
+  },
+  settingsChoiceRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  settingsChoice: {
+    flex: 1,
+    minWidth: 92,
+    backgroundColor: colors.ivory,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  settingsChoiceActive: {
+    backgroundColor: colors.blue,
+    borderColor: colors.blue,
+  },
+  settingsChoiceText: {
+    color: colors.text,
+    fontWeight: "900",
+    fontSize: 13,
+  },
+  settingsChoiceTextActive: {
+    color: colors.white,
+  },
+  settingsChoiceSubtext: {
+    color: colors.muted,
+    fontWeight: "700",
+    fontSize: 10,
+  },
+  settingsChoiceSubtextActive: {
+    color: "rgba(255,255,255,0.82)",
+  },
   bottomNav: {
     backgroundColor: colors.white,
     borderTopWidth: 1,
@@ -7184,3 +7582,4 @@ const styles = StyleSheet.create({
     height: 100,
   },
 });
+}
