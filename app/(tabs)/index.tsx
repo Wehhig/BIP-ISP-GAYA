@@ -192,9 +192,9 @@ const translations = {
     availableItems: "Available items",
     noItemsFound: "No items found",
     noItemsText: "Try another search phrase, category or marketplace filter.",
-    user: "Użytkownik",
-    home: "Start",
-    add: "Dodaj",
+    user: "User",
+    home: "Home",
+    add: "Add",
     stats: "Stats",
     borrowing: "Borrowing",
     chats: "Chats",
@@ -301,9 +301,9 @@ const translations = {
     availableItems: "Dostępne rzeczy",
     noItemsFound: "Brak rzeczy",
     noItemsText: "Spróbuj innej frazy, kategorii albo filtra.",
-    user: "Utilizador",
-    home: "Início",
-    add: "Adicionar",
+    user: "Użytkownik",
+    home: "Start",
+    add: "Dodaj",
     stats: "Statystyki",
     borrowing: "Wypożyczenia",
     chats: "Czaty",
@@ -410,9 +410,9 @@ const translations = {
     availableItems: "Itens disponíveis",
     noItemsFound: "Nenhum item encontrado",
     noItemsText: "Tenta outra pesquisa, categoria ou filtro.",
-    user: "User",
-    home: "Home",
-    add: "Add",
+    user: "Utilizador",
+    home: "Início",
+    add: "Adicionar",
     stats: "Estatísticas",
     borrowing: "Empréstimos",
     chats: "Chats",
@@ -1705,22 +1705,50 @@ export default function App() {
       return;
     }
 
-    setItemList((currentItems) => currentItems.filter((listing) => listing.id !== itemId));
-    setFavoriteIds((currentIds) => currentIds.filter((id) => id !== itemId));
-    setOwnerRentals((currentRentals) =>
-      currentRentals.filter((rental) => rental.itemId !== itemId)
-    );
-    setConversations((currentConversations) =>
-      currentConversations.filter((conversation) => conversation.itemId !== itemId)
-    );
+    Alert.alert(
+      "Delete this listing?",
+      `${item.title} will be removed from your listings, favorites and related demo chats.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            setItemList((currentItems) =>
+              currentItems.filter((listing) => listing.id !== itemId)
+            );
+            setFavoriteIds((currentIds) => currentIds.filter((id) => id !== itemId));
+            setOwnerRentals((currentRentals) =>
+              currentRentals.filter((rental) => rental.itemId !== itemId)
+            );
+            setBorrowRequests((currentRequests) =>
+              currentRequests.filter((request) => request.itemId !== itemId)
+            );
+            setConversations((currentConversations) =>
+              currentConversations.filter((conversation) => conversation.itemId !== itemId)
+            );
+            setReviews((currentReviews) =>
+              currentReviews.filter((review) => review.itemId !== itemId)
+            );
 
-    pushNotification(
-      "Listing deleted",
-      `${item.title} was removed from your marketplace demo.`,
-      "trash"
-    );
+            if (selectedItem?.id === itemId) {
+              setSelectedItem(null);
+            }
 
-    Alert.alert("Listing deleted", `${item.title} was removed from your listings.`);
+            pushNotification(
+              "Listing deleted",
+              `${item.title} was removed from your marketplace demo.`,
+              "trash"
+            );
+
+            Alert.alert("Listing deleted", `${item.title} was removed from your listings.`);
+          },
+        },
+      ]
+    );
   };
 
   const addNewItem = (newItem: NewItemInput) => {
@@ -2338,6 +2366,7 @@ export default function App() {
             onOpenConversation={openConversation}
             onOpenOwnerProfile={setSelectedOwnerName}
             onToggleListingPause={toggleListingPause}
+            onDeleteListing={deleteListing}
             ownerRentals={ownerRentals.filter(
               (rental) => rental.itemId === selectedItem.id
             )}
@@ -3390,6 +3419,7 @@ function ItemDetails({
   onOpenConversation,
   onOpenOwnerProfile,
   onToggleListingPause,
+  onDeleteListing,
   ownerRentals,
   reviews,
   isFavorite,
@@ -3401,6 +3431,7 @@ function ItemDetails({
   onOpenConversation: (item: Item) => void;
   onOpenOwnerProfile: (ownerName: string) => void;
   onToggleListingPause: (itemId: number) => void;
+  onDeleteListing: (itemId: number) => void;
   ownerRentals: OwnerRental[];
   reviews: Review[];
   isFavorite: boolean;
@@ -3541,8 +3572,16 @@ function ItemDetails({
               </Text>
             </Pressable>
 
+            <Pressable
+              style={styles.dangerOutlineButton}
+              onPress={() => onDeleteListing(item.id)}
+            >
+              <Ionicons name="trash" size={17} color={colors.orange} />
+              <Text style={styles.dangerOutlineButtonText}>Delete listing</Text>
+            </Pressable>
+
             <Text style={styles.ownerInfoText}>
-              Paused listings stay in My listings, but are hidden from other students.
+              Paused listings stay in My listings, but are hidden from other students. You can delete a listing when it has no active borrower.
             </Text>
 
             <Text style={[styles.sectionTitle, styles.listingActivityTitle]}>
@@ -4947,11 +4986,30 @@ function MyListingCard({
           <Ionicons name="create" size={16} color={colors.blue} />
           <Text style={styles.myListingActionText}>Quick edit</Text>
         </Pressable>
-        <Pressable style={styles.myListingActionButton} onPress={onDelete}>
-          <Ionicons name="trash" size={16} color={colors.orange} />
-          <Text style={[styles.myListingActionText, { color: colors.orange }]}>Delete</Text>
-        </Pressable>
       </View>
+
+      <Pressable
+        style={[
+          styles.myListingDeleteButton,
+          activeRental && styles.myListingDeleteButtonDisabled,
+        ]}
+        onPress={onDelete}
+        disabled={!!activeRental}
+      >
+        <Ionicons
+          name="trash"
+          size={16}
+          color={activeRental ? colors.muted : colors.orange}
+        />
+        <Text
+          style={[
+            styles.myListingDeleteText,
+            activeRental && styles.myListingDeleteTextDisabled,
+          ]}
+        >
+          {activeRental ? "Delete unavailable while borrowed" : "Delete listing"}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -6304,6 +6362,22 @@ function createStyles(colors: AppColors) {
     color: colors.text,
     fontWeight: "900",
   },
+  dangerOutlineButton: {
+    marginTop: 10,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "rgba(255,112,72,0.08)",
+  },
+  dangerOutlineButtonText: {
+    color: colors.orange,
+    fontWeight: "900",
+  },
   ghostButton: {
     marginTop: 10,
     borderRadius: 18,
@@ -7642,6 +7716,32 @@ function createStyles(colors: AppColors) {
     color: colors.blue,
     fontWeight: "900",
     fontSize: 12,
+  },
+  myListingDeleteButton: {
+    marginTop: 10,
+    backgroundColor: "rgba(255,112,72,0.08)",
+    borderWidth: 1,
+    borderColor: colors.orange,
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  myListingDeleteButtonDisabled: {
+    backgroundColor: colors.ivory,
+    borderColor: colors.border,
+    opacity: 0.7,
+  },
+  myListingDeleteText: {
+    color: colors.orange,
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  myListingDeleteTextDisabled: {
+    color: colors.muted,
   },
   timelineBox: {
     marginTop: 14,
